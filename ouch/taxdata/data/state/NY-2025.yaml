@@ -1,0 +1,84 @@
+# New York State — 2025. UNVERIFIED — populated from NY DTF published rate
+# schedules for recent years as placeholders; verify against the current
+# IT-201 instructions before marking verified.
+meta:
+  jurisdiction: NY
+  year: 2025
+  schema_version: 3
+  verified: false
+  source: ["NY DTF IT-201 instructions (rate schedules)"]
+  notes: "Top NY brackets above 9.65% (10.30%/10.90%) omitted in v1 — flagged."
+
+regime: progressive
+starting_point: federal_agi
+
+modifications:
+  additions:
+    - {id: out_of_state_muni, label: "Non-NY municipal interest", source_field: tax_exempt_interest_out_of_state}
+  subtractions:
+    - {id: social_security, label: "Social Security", source_field: taxable_social_security}
+    - {id: pension_exclusion, label: "Pension exclusion", source_field: pension, cap: 20_000, min_age: 59.5}
+    - {id: us_treasury_interest, label: "US obligation interest", source_field: treasury_interest}
+
+brackets:
+  single:
+    - {up_to: 8_500,     rate: 0.0400}
+    - {up_to: 11_700,    rate: 0.0450}
+    - {up_to: 13_900,    rate: 0.0525}
+    - {up_to: 80_650,    rate: 0.0550}
+    - {up_to: 215_400,   rate: 0.0600}
+    - {up_to: 1_077_550, rate: 0.0685}
+    - {up_to: null,      rate: 0.0965}
+  married_filing_jointly:
+    - {up_to: 17_150,    rate: 0.0400}
+    - {up_to: 23_600,    rate: 0.0450}
+    - {up_to: 27_900,    rate: 0.0525}
+    - {up_to: 161_550,   rate: 0.0550}
+    - {up_to: 323_200,   rate: 0.0600}
+    - {up_to: 2_155_350, rate: 0.0685}
+    - {up_to: null,      rate: 0.0965}
+  married_filing_separately:
+    - {up_to: 8_500,     rate: 0.0400}
+    - {up_to: 11_700,    rate: 0.0450}
+    - {up_to: 13_900,    rate: 0.0525}
+    - {up_to: 80_650,    rate: 0.0550}
+    - {up_to: 161_550,   rate: 0.0600}
+    - {up_to: 1_077_550, rate: 0.0685}
+    - {up_to: null,      rate: 0.0965}
+  head_of_household:
+    - {up_to: 12_800,    rate: 0.0400}
+    - {up_to: 17_650,    rate: 0.0450}
+    - {up_to: 20_900,    rate: 0.0525}
+    - {up_to: 107_650,   rate: 0.0550}
+    - {up_to: 269_300,   rate: 0.0600}
+    - {up_to: 1_616_450, rate: 0.0685}
+    - {up_to: null,      rate: 0.0965}
+  qualifying_surviving_spouse:
+    - {up_to: 17_150,    rate: 0.0400}
+    - {up_to: 23_600,    rate: 0.0450}
+    - {up_to: 27_900,    rate: 0.0525}
+    - {up_to: 161_550,   rate: 0.0550}
+    - {up_to: 323_200,   rate: 0.0600}
+    - {up_to: 2_155_350, rate: 0.0685}
+    - {up_to: null,      rate: 0.0965}
+
+standard_deduction:
+  single: 8_000
+  married_filing_jointly: 16_050
+  married_filing_separately: 8_000
+  head_of_household: 11_200
+  qualifying_surviving_spouse: 16_050
+
+personal_exemption: {per_dependent: 1_000}
+
+itemized:
+  allowed: true
+  decouple_from_federal: true
+  salt_deductible: false
+
+credits: []
+
+capital_gains_treatment: ordinary
+supplemental_withholding_rate: 0.1090
+reciprocity_states: []
+credit_for_taxes_paid_other_states: true

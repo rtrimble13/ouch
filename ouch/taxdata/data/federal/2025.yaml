@@ -1,0 +1,218 @@
+# Federal tax data — 2025.
+# Figures drawn from IRS Rev. Proc. 2024-40 and related guidance, but this
+# file has NOT been independently re-verified against primary sources by a
+# maintainer, so it ships `verified: false` (spec §6.1). Every result computed
+# from it carries a projection/unverified warning until a reviewer checks each
+# figure and flips the flag.
+meta:
+  jurisdiction: US
+  year: 2025
+  schema_version: 3
+  verified: false
+  source:
+    - "IRS Rev. Proc. 2024-40 (inflation adjustments)"
+    - "IRC §1, §63, §199A, §1411, §1401, §3101"
+    - "SSA 2025 wage base announcement"
+  notes: >
+    Populated from published 2025 guidance; requires independent verification
+    before being marked verified. Recent legislation may have changed SALT cap,
+    senior deduction, and other parameters — verify before trusting output.
+
+ordinary_brackets:
+  single:
+    - {up_to: 11_925,   rate: 0.10}
+    - {up_to: 48_475,   rate: 0.12}
+    - {up_to: 103_350,  rate: 0.22}
+    - {up_to: 197_300,  rate: 0.24}
+    - {up_to: 250_525,  rate: 0.32}
+    - {up_to: 626_350,  rate: 0.35}
+    - {up_to: null,     rate: 0.37}
+  married_filing_jointly:
+    - {up_to: 23_850,   rate: 0.10}
+    - {up_to: 96_950,   rate: 0.12}
+    - {up_to: 206_700,  rate: 0.22}
+    - {up_to: 394_600,  rate: 0.24}
+    - {up_to: 501_050,  rate: 0.32}
+    - {up_to: 751_600,  rate: 0.35}
+    - {up_to: null,     rate: 0.37}
+  married_filing_separately:
+    - {up_to: 11_925,   rate: 0.10}
+    - {up_to: 48_475,   rate: 0.12}
+    - {up_to: 103_350,  rate: 0.22}
+    - {up_to: 197_300,  rate: 0.24}
+    - {up_to: 250_525,  rate: 0.32}
+    - {up_to: 375_800,  rate: 0.35}
+    - {up_to: null,     rate: 0.37}
+  head_of_household:
+    - {up_to: 17_000,   rate: 0.10}
+    - {up_to: 64_850,   rate: 0.12}
+    - {up_to: 103_350,  rate: 0.22}
+    - {up_to: 197_300,  rate: 0.24}
+    - {up_to: 250_500,  rate: 0.32}
+    - {up_to: 626_350,  rate: 0.35}
+    - {up_to: null,     rate: 0.37}
+  qualifying_surviving_spouse:
+    - {up_to: 23_850,   rate: 0.10}
+    - {up_to: 96_950,   rate: 0.12}
+    - {up_to: 206_700,  rate: 0.22}
+    - {up_to: 394_600,  rate: 0.24}
+    - {up_to: 501_050,  rate: 0.32}
+    - {up_to: 751_600,  rate: 0.35}
+    - {up_to: null,     rate: 0.37}
+
+preferential_brackets:
+  single:
+    - {up_to: 48_350,  rate: 0.00}
+    - {up_to: 533_400, rate: 0.15}
+    - {up_to: null,    rate: 0.20}
+  married_filing_jointly:
+    - {up_to: 96_700,  rate: 0.00}
+    - {up_to: 600_050, rate: 0.15}
+    - {up_to: null,    rate: 0.20}
+  married_filing_separately:
+    - {up_to: 48_350,  rate: 0.00}
+    - {up_to: 300_000, rate: 0.15}
+    - {up_to: null,    rate: 0.20}
+  head_of_household:
+    - {up_to: 64_750,  rate: 0.00}
+    - {up_to: 566_700, rate: 0.15}
+    - {up_to: null,    rate: 0.20}
+  qualifying_surviving_spouse:
+    - {up_to: 96_700,  rate: 0.00}
+    - {up_to: 600_050, rate: 0.15}
+    - {up_to: null,    rate: 0.20}
+
+special_rate_groups:
+  unrecaptured_1250: 0.25
+  collectibles: 0.28
+
+standard_deduction:
+  single: 15_000
+  married_filing_jointly: 30_000
+  married_filing_separately: 15_000
+  head_of_household: 22_500
+  qualifying_surviving_spouse: 30_000
+  additional_age65: {single: 2_000, married: 1_600}
+  additional_blind: {single: 2_000, married: 1_600}
+  dependent_floor: 1_350
+  dependent_earned_addon: 450
+
+itemized:
+  salt_cap:
+    amount: 10_000
+    mfs_amount: 5_000
+    phasedown: null
+  medical_agi_floor: 0.075
+  mortgage_acquisition_limit: 750_000
+  mortgage_grandfathered_limit: 1_000_000
+  charitable_agi_limits: {cash: 0.60, noncash: 0.30, appreciated: 0.30}
+
+qbi:
+  rate: 0.20
+  threshold:
+    single: 197_300
+    married_filing_jointly: 394_600
+    married_filing_separately: 197_300
+    head_of_household: 197_300
+    qualifying_surviving_spouse: 394_600
+  phase_in_range:
+    single: 50_000
+    married_filing_jointly: 100_000
+    married_filing_separately: 50_000
+    head_of_household: 50_000
+    qualifying_surviving_spouse: 100_000
+  wage_limit_pct: 0.50
+  wage_ubia_alt: {wage_pct: 0.25, ubia_pct: 0.025}
+  sstb_disallowed_above_phasein: true
+
+payroll:
+  social_security:
+    rate_employee: 0.062
+    rate_self_employed: 0.124
+    wage_base: 176_100
+  medicare:
+    rate_employee: 0.0145
+    rate_self_employed: 0.029
+  additional_medicare:
+    rate: 0.009
+    threshold:
+      single: 200_000
+      married_filing_jointly: 250_000
+      married_filing_separately: 125_000
+      head_of_household: 200_000
+      qualifying_surviving_spouse: 250_000
+  se_income_factor: 0.9235
+  se_deduction_pct: 0.50
+
+niit:
+  rate: 0.038
+  threshold:
+    single: 200_000
+    married_filing_jointly: 250_000
+    married_filing_separately: 125_000
+    head_of_household: 200_000
+    qualifying_surviving_spouse: 250_000
+
+amt:
+  exemption:
+    single: 88_100
+    married_filing_jointly: 137_000
+    married_filing_separately: 68_500
+    head_of_household: 88_100
+    qualifying_surviving_spouse: 137_000
+  phaseout_threshold:
+    single: 626_350
+    married_filing_jointly: 1_252_700
+    married_filing_separately: 626_350
+    head_of_household: 626_350
+    qualifying_surviving_spouse: 1_252_700
+  phaseout_rate: 0.25
+  brackets:
+    - {up_to: 239_100, rate: 0.26}
+    - {up_to: null,    rate: 0.28}
+
+capital_loss:
+  annual_ordinary_offset: 3_000
+  mfs_offset: 1_500
+
+credits:
+  child_tax_credit:
+    amount_per_child: 2_000
+    refundable_cap: 1_700
+    phaseout_start:
+      single: 200_000
+      married_filing_jointly: 400_000
+      married_filing_separately: 200_000
+      head_of_household: 200_000
+      qualifying_surviving_spouse: 400_000
+    phaseout_rate_per_1000: 50
+    qualifying_age_max: 16
+    refundable_earned_income_floor: 2_500
+    refundable_earned_income_pct: 0.15
+  other_dependent_credit:
+    amount: 500
+
+estimated_payments:
+  safe_harbor:
+    current_year_pct: 0.90
+    prior_year_pct: 1.00
+    prior_year_pct_high_income: 1.10
+    high_income_agi_threshold: 150_000
+    high_income_agi_threshold_mfs: 75_000
+  due_dates: ["04-15", "06-15", "09-15", "01-15"]
+  underpayment_rate_by_quarter: [0.08, 0.08, 0.08, 0.08]
+
+social_security_taxability:
+  base_amount:
+    single: 25_000
+    married_filing_jointly: 32_000
+    married_filing_separately: 0
+    head_of_household: 25_000
+    qualifying_surviving_spouse: 25_000
+  adjusted_base:
+    single: 34_000
+    married_filing_jointly: 44_000
+    married_filing_separately: 0
+    head_of_household: 34_000
+    qualifying_surviving_spouse: 34_000
+  max_inclusion: 0.85

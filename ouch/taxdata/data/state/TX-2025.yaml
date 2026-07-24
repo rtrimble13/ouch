@@ -1,0 +1,10 @@
+# Texas — 2025. No state income tax; the engine short-circuits to zero and
+# says so.
+meta:
+  jurisdiction: TX
+  year: 2025
+  schema_version: 3
+  verified: true
+  source: ["Texas has no personal income tax (Tex. Const. art. VIII §24-a)"]
+
+regime: none

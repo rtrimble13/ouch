@@ -1,0 +1,42 @@
+# New York City resident income tax — 2025. UNVERIFIED placeholder brackets.
+meta:
+  jurisdiction: NYC
+  parent: NY
+  year: 2025
+  schema_version: 3
+  verified: false
+  source: ["NYC Dept. of Finance / NY IT-201 instructions"]
+
+regime: progressive
+applies_to: residents
+starting_point: state_taxable
+
+brackets:
+  single:
+    - {up_to: 12_000, rate: 0.03078}
+    - {up_to: 25_000, rate: 0.03762}
+    - {up_to: 50_000, rate: 0.03819}
+    - {up_to: null,   rate: 0.03876}
+  married_filing_jointly:
+    - {up_to: 21_600, rate: 0.03078}
+    - {up_to: 45_000, rate: 0.03762}
+    - {up_to: 90_000, rate: 0.03819}
+    - {up_to: null,   rate: 0.03876}
+  married_filing_separately:
+    - {up_to: 12_000, rate: 0.03078}
+    - {up_to: 25_000, rate: 0.03762}
+    - {up_to: 50_000, rate: 0.03819}
+    - {up_to: null,   rate: 0.03876}
+  head_of_household:
+    - {up_to: 14_400, rate: 0.03078}
+    - {up_to: 30_000, rate: 0.03762}
+    - {up_to: 60_000, rate: 0.03819}
+    - {up_to: null,   rate: 0.03876}
+  qualifying_surviving_spouse:
+    - {up_to: 21_600, rate: 0.03078}
+    - {up_to: 45_000, rate: 0.03762}
+    - {up_to: 90_000, rate: 0.03819}
+    - {up_to: null,   rate: 0.03876}
+
+credits:
+  - {id: nyc_school_tax, type: refundable, amount: 63}
