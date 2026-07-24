@@ -14,7 +14,7 @@ balance is close to zero.
 
 ## Status
 
-This implements **Milestones 1–3** of the [specification](docs/SPEC.md):
+This implements **Milestones 1–4** of the [specification](docs/SPEC.md):
 
 - **M1 — core estimator**: the profile/config system, the pure federal
   calculation engine (preferential rate stacking, SE tax with W-2 wage-base
@@ -36,10 +36,19 @@ This implements **Milestones 1–3** of the [specification](docs/SPEC.md):
   the full pipeline (never `loss × marginal_rate`), deferred-cost/NPV
   honesty, gain-harvesting room in the 0% band, and holding-period alerts.
 
-Not yet implemented (later milestones): the AI CPA agent,
-part-year/multi-state, EITC and the remaining credit suite, OCR for scanned
-documents, 1099-B lot ingestion, cross-issuer substantially-identical
-analysis, profile encryption.
+- **M4 — AI CPA agent** (`ouch ask`, `ouch agent [--review]`): a narrator
+  and advisor over deterministic output, never a calculator. The model
+  reaches profile data only through logged tools over the real engine and
+  trace; guardrails verify every dollar figure against tool results
+  (retry once, then refuse), screen out evasion requests, and flag uncited
+  claims. Off by default, explicit consent before the first transmission,
+  names redacted, `--no-ai` hard-disables all network paths. Requires
+  `pip install "ouch[ai]"` and an API key in the environment.
+
+Not yet implemented (later milestones): part-year/multi-state, EITC and the
+remaining credit suite, OCR for scanned documents, 1099-B lot ingestion,
+cross-issuer substantially-identical analysis, profile encryption,
+transcript logging, keyring key storage, on-device model endpoints.
 
 ## Install
 
@@ -87,6 +96,9 @@ ouch harvest import lots.csv       # canonical lot schema (see --help)
 ouch harvest scan --as-of 2025-12-12
 ouch harvest simulate --sell L-0217 --sell L-0388
 ouch harvest washsale-check
+
+OUCH_AI_ENABLED=1 ouch ask "why did my effective rate jump?"
+ouch agent --review                # requires: pip install "ouch[ai]"
 
 ouch data list                     # jurisdictions × years available
 ouch config show --origin          # where every setting came from

@@ -15,9 +15,9 @@ except ImportError:  # typer >= 0.16 vendors click
                                          UsageError as ClickUsageError)
 
 import ouch
-from ouch.cli import (cmd_config, cmd_data, cmd_estimate, cmd_explain,
-                      cmd_harvest, cmd_import, cmd_init, cmd_profile,
-                      cmd_scenario, cmd_withhold)
+from ouch.cli import (cmd_agent, cmd_config, cmd_data, cmd_estimate,
+                      cmd_explain, cmd_harvest, cmd_import, cmd_init,
+                      cmd_profile, cmd_scenario, cmd_withhold)
 from ouch.cli.common import build_runtime
 from ouch.errors import OuchError
 
@@ -72,11 +72,14 @@ def root(
     ctx.obj = build_runtime(profile, year, config, fmt, verbose, quiet,
                             no_color, dry_run, explain)
     ctx.obj.output_path = output  # type: ignore[attr-defined]
+    ctx.obj.no_ai = no_ai  # type: ignore[attr-defined]
 
 
 app.command("init")(cmd_init.init)
 app.command("estimate")(cmd_estimate.estimate)
 app.command("explain")(cmd_explain.explain)
+app.command("ask")(cmd_agent.ask)
+app.command("agent")(cmd_agent.agent)
 app.add_typer(cmd_withhold.app, name="withhold",
               help="Withholding: check trajectory, solve for a target, W-4 lines")
 app.add_typer(cmd_scenario.app, name="scenario",

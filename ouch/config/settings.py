@@ -33,6 +33,11 @@ DEFAULTS: dict[str, object] = {
     "privacy.encrypt_profiles": False,
     "privacy.redact_in_logs": True,
     "ai.enabled": False,
+    "ai.provider": "anthropic",
+    "ai.model": "claude-opus-5",     # configurable; see provider docs
+    "ai.api_key_env": "ANTHROPIC_API_KEY",
+    "ai.require_confirmation": True,
+    "ai.transcript_log": False,
 }
 
 ENV_MAP = {
