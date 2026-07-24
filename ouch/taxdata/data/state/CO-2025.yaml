@@ -1,0 +1,25 @@
+# Colorado — 2025. UNVERIFIED placeholder. Flat rate on federal taxable
+# income (Colorado's actual starting point).
+meta:
+  jurisdiction: CO
+  year: 2025
+  schema_version: 3
+  verified: false
+  source: ["CO DOR — income tax rate"]
+
+regime: flat
+starting_point: federal_taxable
+rate: 0.044
+
+modifications:
+  subtractions:
+    - {id: social_security, label: "Social Security (65+)", source_field: taxable_social_security, min_age: 65}
+
+itemized:
+  allowed: false
+  decouple_from_federal: false
+  salt_deductible: false
+
+credits: []
+capital_gains_treatment: ordinary
+credit_for_taxes_paid_other_states: true

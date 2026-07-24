@@ -1,0 +1,87 @@
+# California — 2025. UNVERIFIED placeholder brackets drawn from recent FTB
+# schedules; the mental-health surtax above $1M and CA-specific conformity
+# differences are not modeled (fidelity: approximate). Verify against the
+# current FTB rate schedules before marking verified.
+meta:
+  jurisdiction: CA
+  year: 2025
+  schema_version: 3
+  verified: false
+  source: ["CA FTB rate schedules"]
+  notes: "1% mental-health surtax above $1M not modeled in v1."
+
+regime: progressive
+starting_point: federal_agi
+
+modifications:
+  subtractions:
+    - {id: social_security, label: "Social Security", source_field: taxable_social_security}
+    - {id: us_treasury_interest, label: "US obligation interest", source_field: treasury_interest}
+
+brackets:
+  single:
+    - {up_to: 10_756,   rate: 0.01}
+    - {up_to: 25_499,   rate: 0.02}
+    - {up_to: 40_245,   rate: 0.04}
+    - {up_to: 55_866,   rate: 0.06}
+    - {up_to: 70_606,   rate: 0.08}
+    - {up_to: 360_659,  rate: 0.093}
+    - {up_to: 432_787,  rate: 0.103}
+    - {up_to: 721_314,  rate: 0.113}
+    - {up_to: null,     rate: 0.123}
+  married_filing_jointly:
+    - {up_to: 21_512,   rate: 0.01}
+    - {up_to: 50_998,   rate: 0.02}
+    - {up_to: 80_490,   rate: 0.04}
+    - {up_to: 111_732,  rate: 0.06}
+    - {up_to: 141_212,  rate: 0.08}
+    - {up_to: 721_318,  rate: 0.093}
+    - {up_to: 865_574,  rate: 0.103}
+    - {up_to: 1_442_628, rate: 0.113}
+    - {up_to: null,     rate: 0.123}
+  married_filing_separately:
+    - {up_to: 10_756,   rate: 0.01}
+    - {up_to: 25_499,   rate: 0.02}
+    - {up_to: 40_245,   rate: 0.04}
+    - {up_to: 55_866,   rate: 0.06}
+    - {up_to: 70_606,   rate: 0.08}
+    - {up_to: 360_659,  rate: 0.093}
+    - {up_to: 432_787,  rate: 0.103}
+    - {up_to: 721_314,  rate: 0.113}
+    - {up_to: null,     rate: 0.123}
+  head_of_household:
+    - {up_to: 21_527,   rate: 0.01}
+    - {up_to: 51_000,   rate: 0.02}
+    - {up_to: 65_744,   rate: 0.04}
+    - {up_to: 81_364,   rate: 0.06}
+    - {up_to: 96_107,   rate: 0.08}
+    - {up_to: 490_493,  rate: 0.093}
+    - {up_to: 588_593,  rate: 0.103}
+    - {up_to: 980_987,  rate: 0.113}
+    - {up_to: null,     rate: 0.123}
+  qualifying_surviving_spouse:
+    - {up_to: 21_512,   rate: 0.01}
+    - {up_to: 50_998,   rate: 0.02}
+    - {up_to: 80_490,   rate: 0.04}
+    - {up_to: 111_732,  rate: 0.06}
+    - {up_to: 141_212,  rate: 0.08}
+    - {up_to: 721_318,  rate: 0.093}
+    - {up_to: 865_574,  rate: 0.103}
+    - {up_to: 1_442_628, rate: 0.113}
+    - {up_to: null,     rate: 0.123}
+
+standard_deduction:
+  single: 5_540
+  married_filing_jointly: 11_080
+  married_filing_separately: 5_540
+  head_of_household: 11_080
+  qualifying_surviving_spouse: 11_080
+
+itemized:
+  allowed: true
+  decouple_from_federal: true
+  salt_deductible: false
+
+credits: []
+capital_gains_treatment: ordinary
+credit_for_taxes_paid_other_states: true

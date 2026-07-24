@@ -1,0 +1,36 @@
+# W-2 mapping table (spec §11.5). Mappings live in data, not code.
+form: W-2
+id: w2
+owner_scoped: true            # values belong to taxpayer or spouse
+signatures:
+  - "Wage and Tax Statement"
+  - "OMB No. 1545-0008"
+fields:
+  - box: "1"
+    labels: ["Wages, tips, other compensation"]
+    target: income.wages.{owner}_w2
+    type: money
+    aggregate: sum
+    validate: {min: 0, max: 100_000_000}
+  - box: "2"
+    labels: ["Federal income tax withheld"]
+    target: payments.withholding.federal_ytd
+    type: money
+    aggregate: sum
+  - box: "3"
+    labels: ["Social security wages"]
+    target: income.wages.{owner}_ss_wages
+    type: money
+    aggregate: sum
+  - box: "17"
+    labels: ["State income tax"]
+    target: payments.withholding.state_ytd
+    type: money
+    aggregate: sum
+    required: false
+  - box: "19"
+    labels: ["Local income tax"]
+    target: payments.withholding.local_ytd
+    type: money
+    aggregate: sum
+    required: false

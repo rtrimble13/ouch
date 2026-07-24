@@ -1,0 +1,28 @@
+# Pennsylvania — 2026. PROJECTED placeholder carried from 2025. UNVERIFIED placeholder. PA is a flat-rate state; note
+# that real PA taxes eight income classes with no standard deduction and no
+# loss netting across classes — modeled here as flat on federal AGI, fidelity
+# approximate.
+meta:
+  jurisdiction: PA
+  year: 2026
+  schema_version: 3
+  verified: false
+  source: ["PA DOR — personal income tax rate"]
+  notes: "PA class-of-income rules approximated by flat rate on federal AGI."
+
+regime: flat
+starting_point: federal_agi
+rate: 0.0307
+
+modifications:
+  subtractions:
+    - {id: social_security, label: "Social Security", source_field: taxable_social_security}
+
+itemized:
+  allowed: false
+  decouple_from_federal: true
+  salt_deductible: false
+
+credits: []
+capital_gains_treatment: ordinary
+credit_for_taxes_paid_other_states: true

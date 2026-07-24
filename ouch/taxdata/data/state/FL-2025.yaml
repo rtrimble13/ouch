@@ -1,0 +1,9 @@
+# Florida — 2025. No state income tax.
+meta:
+  jurisdiction: FL
+  year: 2025
+  schema_version: 3
+  verified: true
+  source: ["Florida has no personal income tax (Fla. Const. art. VII §5)"]
+
+regime: none
