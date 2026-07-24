@@ -14,7 +14,7 @@ balance is close to zero.
 
 ## Status
 
-This implements **Milestones 1–2** of the [specification](docs/SPEC.md):
+This implements **Milestones 1–3** of the [specification](docs/SPEC.md):
 
 - **M1 — core estimator**: the profile/config system, the pure federal
   calculation engine (preferential rate stacking, SE tax with W-2 wage-base
@@ -29,9 +29,17 @@ This implements **Milestones 1–2** of the [specification](docs/SPEC.md):
   interactive review (nothing is written unconfirmed), and per-field
   provenance records.
 
-Not yet implemented (later milestones): tax-loss harvesting, the AI CPA
-agent, part-year/multi-state, EITC and the remaining credit suite, OCR for
-scanned documents, 1099-B lot ingestion, profile encryption.
+- **M3 — tax-loss harvesting** (analysis, not execution — ouch never
+  connects to a brokerage): canonical lot-CSV ingestion with IRA exclusion,
+  §1091 wash-sale window analysis (DRIP conflicts pro-rata, IRA purchases
+  flagged as *permanent* disallowance), benefit quantification by re-running
+  the full pipeline (never `loss × marginal_rate`), deferred-cost/NPV
+  honesty, gain-harvesting room in the 0% band, and holding-period alerts.
+
+Not yet implemented (later milestones): the AI CPA agent,
+part-year/multi-state, EITC and the remaining credit suite, OCR for scanned
+documents, 1099-B lot ingestion, cross-issuer substantially-identical
+analysis, profile encryption.
 
 ## Install
 
@@ -74,6 +82,11 @@ ouch scenario sweep --var income.retirement.roth_conversion \
 
 ouch import pdf ~/tax-docs/2025/*.pdf   # requires: pip install "ouch[pdf]"
 ouch import status                 # checklist of imported documents
+
+ouch harvest import lots.csv       # canonical lot schema (see --help)
+ouch harvest scan --as-of 2025-12-12
+ouch harvest simulate --sell L-0217 --sell L-0388
+ouch harvest washsale-check
 
 ouch data list                     # jurisdictions × years available
 ouch config show --origin          # where every setting came from

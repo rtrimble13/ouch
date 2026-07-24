@@ -16,8 +16,8 @@ except ImportError:  # typer >= 0.16 vendors click
 
 import ouch
 from ouch.cli import (cmd_config, cmd_data, cmd_estimate, cmd_explain,
-                      cmd_import, cmd_init, cmd_profile, cmd_scenario,
-                      cmd_withhold)
+                      cmd_harvest, cmd_import, cmd_init, cmd_profile,
+                      cmd_scenario, cmd_withhold)
 from ouch.cli.common import build_runtime
 from ouch.errors import OuchError
 
@@ -84,6 +84,9 @@ app.add_typer(cmd_scenario.app, name="scenario",
                    "compare | sweep")
 app.add_typer(cmd_import.app, name="import",
               help="PDF ingestion: pdf | status")
+app.add_typer(cmd_harvest.app, name="harvest",
+              help="Tax-loss harvesting: import | scan | simulate | "
+                   "washsale-check")
 app.add_typer(cmd_profile.app, name="profile",
               help="show | validate | new | path")
 app.add_typer(cmd_data.app, name="data",
