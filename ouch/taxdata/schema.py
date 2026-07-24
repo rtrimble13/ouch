@@ -172,9 +172,77 @@ class OtherDependentCredit(_Model):
     amount: Decimal
 
 
+class EitcTier(_Model):
+    children: int
+    phase_in_rate: Decimal
+    earned_income_amount: Decimal     # plateau start (earned income at max)
+    max_credit: Decimal
+    phaseout_start_mfj: Decimal
+    phaseout_start_other: Decimal
+    phaseout_rate: Decimal
+
+
+class Eitc(_Model):
+    investment_income_limit: Decimal
+    by_children: list[EitcTier]
+
+
+class ChildDependentCare(_Model):
+    max_expenses_one: Decimal
+    max_expenses_two_plus: Decimal
+    max_rate: Decimal                 # 35%
+    min_rate: Decimal                 # 20% floor
+    agi_threshold: Decimal            # rate steps down above this
+    step: Decimal                     # per this much AGI
+    step_rate: Decimal                # by this much
+    qualifying_age_max: int = 12
+
+
+class EducationPhaseout(_Model):
+    mfj_start: Decimal
+    mfj_end: Decimal
+    other_start: Decimal
+    other_end: Decimal
+
+
+class Aotc(_Model):
+    first_dollar: Decimal             # 100% of the first ...
+    second_rate: Decimal              # then this rate on the next ...
+    second_cap: Decimal
+    refundable_pct: Decimal
+    phaseout: EducationPhaseout
+
+
+class Llc(_Model):
+    rate: Decimal
+    max_expenses: Decimal
+    phaseout: EducationPhaseout
+
+
+class Education(_Model):
+    aotc: Aotc
+    llc: Llc
+
+
+class SaversTier(_Model):
+    mfj_up_to: Decimal
+    hoh_up_to: Decimal
+    other_up_to: Decimal
+    rate: Decimal
+
+
+class SaversCredit(_Model):
+    contribution_cap: Decimal
+    tiers: list[SaversTier]           # descending rates, ascending AGI
+
+
 class Credits(_Model):
     child_tax_credit: ChildTaxCredit
     other_dependent_credit: OtherDependentCredit
+    eitc: Optional[Eitc] = None
+    child_dependent_care: Optional[ChildDependentCare] = None
+    education: Optional[Education] = None
+    savers_credit: Optional[SaversCredit] = None
 
 
 class SafeHarbor(_Model):

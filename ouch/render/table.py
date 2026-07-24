@@ -66,6 +66,9 @@ def render_summary(result: TaxResult, status: FilingStatus, state: str,
         lines.append(_row(f"{result.state.code} state tax", result.state.tax))
     if result.local is not None and result.local.tax > ZERO:
         lines.append(_row(f"{result.local.name} local tax", result.local.tax))
+    if result.other_state is not None and result.other_state.tax > ZERO:
+        lines.append(_row(f"{result.other_state.code} (part-year)",
+                          result.other_state.tax))
     lines.append("  " + "═" * 58)
     lines.append(_row("TOTAL TAX BURDEN", result.total_tax_all_jurisdictions))
     lines.append("")

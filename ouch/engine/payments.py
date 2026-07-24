@@ -83,3 +83,56 @@ def safe_harbor(inp: TaxInput, federal_total_tax: Money,
         shortfall=shortfall,
         estimated_penalty=penalty,
     )
+
+
+@dataclass(frozen=True)
+class QuarterlyInstallment:
+    quarter: int
+    due_date: str            # ISO date, Q4 lands in the following January
+    required: Money
+    paid: Money
+
+
+def quarterly_schedule(inp: TaxInput, fed: FederalData,
+                       federal_total_tax: Money,
+                       projected_withholding: Money, *,
+                       target_zero: bool = False) -> tuple[Money, list[QuarterlyInstallment]]:
+    """Four-payment estimated schedule (spec §10.4).
+
+    The annual requirement is the safe-harbor minimum (or the full liability
+    with target_zero) less withholding, which is treated as paid evenly
+    across the year. With `payments.annualized_income_fractions` set, each
+    installment follows the income fraction earned by that period — the
+    annualized income installment method (fidelity: approximate; the
+    statutory Schedule AI annualization factors are not applied).
+    """
+    sh = safe_harbor(inp, federal_total_tax, projected_withholding, fed)
+    if target_zero:
+        annual = federal_total_tax
+    elif sh.required is not None:
+        annual = sh.required
+    else:
+        annual = sh.current_year_90pct
+    via_estimates = maxm(ZERO, annual - projected_withholding)
+
+    fractions = inp.payments.annualized_income_fractions
+    if fractions is None:
+        shares = [Decimal("0.25")] * 4
+    else:
+        shares = [Decimal(f) for f in fractions]
+
+    paid = [Money(inp.payments.estimated.q1_federal),
+            Money(inp.payments.estimated.q2_federal),
+            Money(inp.payments.estimated.q3_federal),
+            Money(inp.payments.estimated.q4_federal)]
+
+    installments = []
+    for i, due in enumerate(fed.estimated_payments.due_dates[:4]):
+        month, day = due.split("-")
+        year = inp.tax_year + 1 if int(month) < 4 else inp.tax_year
+        installments.append(QuarterlyInstallment(
+            quarter=i + 1,
+            due_date=f"{year}-{month}-{day}",
+            required=(via_estimates * shares[i]).round_cent(),
+            paid=paid[i]))
+    return via_estimates, installments

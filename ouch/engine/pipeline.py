@@ -7,11 +7,11 @@ raise exit-code-9 errors rather than emitting a wrong number.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from ouch.engine import setax
-from ouch.engine.credits import child_tax_credit
+from ouch.engine.credits import compute_credits
 from ouch.engine.deductions import (ItemizedResult, itemized_deduction,
                                     qbi_deduction, standard_deduction)
 from ouch.engine.federal import amt_additional, federal_income_tax
@@ -38,6 +38,7 @@ class ResolvedData:
     federal: FederalData
     state: StateData | None = None
     local: LocalData | None = None
+    former_state: StateData | None = None   # part-year: prior residence
 
 
 @dataclass(frozen=True)
@@ -299,7 +300,7 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     regular_tax = tax.total
 
     # 10. AMT parallel computation -------------------------------------------
-    amt_add = amt_additional(
+    amt_add, tmt = amt_additional(
         taxable_income, pref_income, mode, std,
         itemized.salt if mode == "itemized" else ZERO,
         status, fed.amt, fed.preferential_brackets[status], regular_tax)
@@ -310,18 +311,10 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                     "as taxable income plus standard/SALT addback",
                form_ref="Form 6251", authority="IRC §55",
                inputs=("fed.taxable",), fidelity=Fidelity.APPROXIMATE)
-    elif regular_tax > ZERO:
-        # AMT-proximity warning (§15.4)
-        tentative = regular_tax - amt_add
-        # recompute closeness cheaply: flag when within 10%
-        probe = amt_additional(
-            taxable_income, pref_income, mode, std,
-            itemized.salt if mode == "itemized" else ZERO,
-            status, fed.amt, fed.preferential_brackets[status],
-            regular_tax * Decimal("0.9"))
-        if probe > ZERO:
-            warnings.append("AMT within 10% of regular tax — a small change "
-                            "could trigger it")
+    elif regular_tax > ZERO and tmt > regular_tax * Decimal("0.9"):
+        # AMT-proximity warning (§15.4): within 10% of regular tax
+        warnings.append("AMT within 10% of regular tax — a small change "
+                        "could trigger it")
 
     # 11. Additional Medicare tax; NIIT --------------------------------------
     addl_med = setax.additional_medicare(ss_wages, se.se_base, status, fed)
@@ -348,27 +341,56 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                form_ref="Form 8960", authority="IRC §1411",
                inputs=("fed.agi", data_ref))
 
-    # 12–13. Credits ---------------------------------------------------------
+    # 12–13. Credits (ordered cascade — spec §9.8) ---------------------------
     earned_income = wages + maxm(se_net, ZERO)
     income_tax_liability = regular_tax + amt_add
-    ctc = child_tax_credit(inp, agi, income_tax_liability, earned_income, fed)
-    if ctc.nonrefundable_used > income_tax_liability:
+    # EITC investment income: interest (incl. tax-exempt) + dividends + net
+    # capital gain included in income
+    eitc_investment_income = (
+        interest + Money(inv.tax_exempt_interest)
+        + Money(inv.ordinary_dividends)
+        + maxm(ZERO, netting.ordinary_component + netting.preferential_gain
+               + netting.unrecap_1250 + netting.collectibles))
+    credits = compute_credits(inp, agi, income_tax_liability, earned_income,
+                              eitc_investment_income, fed)
+    if credits.nonrefundable_used > income_tax_liability:
         raise InvariantError("nonrefundable credits exceed tax liability")
-    if ctc.after_phaseout > ZERO:
-        tb.add("fed.credits.ctc", "Child tax credit / credit for other "
-               "dependents", ctc.after_phaseout, jurisdiction="federal",
-               rule=f"{ctc.qualifying_children} qualifying children × "
-                    f"${fed.credits.child_tax_credit.amount_per_child:,.0f} + "
-                    f"{ctc.other_dependents} other dependents × "
-                    f"${fed.credits.other_dependent_credit.amount:,.0f}, "
-                    "phased out $50 per $1,000 of AGI over the threshold",
-               form_ref="Schedule 8812", authority="IRC §24",
-               inputs=("fed.agi", data_ref))
-    warnings.extend(ctc.warnings)
+    for item in credits.items:
+        tb.add(item.id, item.label.capitalize(), item.amount,
+               jurisdiction="federal",
+               rule=("refundable credit" if item.refundable
+                     else "nonrefundable credit, clamped to remaining "
+                          "liability"),
+               inputs=("fed.agi", data_ref),
+               fidelity=Fidelity.APPROXIMATE)
+    warnings.extend(credits.warnings)
+
+    # AMT credit carryforward (Form 8801): prior-year AMT is recoverable to
+    # the extent regular tax exceeds tentative minimum tax this year.
+    amt_credit_used = ZERO
+    carryover = Money(inp.carryovers.amt_credit)
+    if carryover > ZERO and amt_add == ZERO:
+        headroom = maxm(ZERO, regular_tax - tmt)
+        liability_left = (income_tax_liability - credits.nonrefundable_used)
+        amt_credit_used = minm(carryover, headroom, maxm(liability_left, ZERO))
+        if amt_credit_used > ZERO:
+            tb.add("fed.credits.amt", "Minimum tax credit (AMT carryforward)",
+                   amt_credit_used, jurisdiction="federal",
+                   rule="prior-year AMT recovered up to the excess of regular "
+                        "tax over tentative minimum tax",
+                   form_ref="Form 8801", authority="IRC §53",
+                   inputs=("fed.taxable",), fidelity=Fidelity.APPROXIMATE)
+        remaining_carryover = carryover - amt_credit_used
+        if remaining_carryover > ZERO:
+            warnings.append(
+                f"AMT credit carryforward remaining: "
+                f"${remaining_carryover.round_dollar().amount:,.0f} "
+                "(carries to future years)")
 
     # 14. Federal total tax --------------------------------------------------
     federal_total = (income_tax_liability + se.se_tax + addl_med + niit_tax
-                     - ctc.nonrefundable_used - ctc.refundable)
+                     - credits.nonrefundable_used - amt_credit_used
+                     - credits.refundable)
     tb.add("fed.tax.total", "Federal total tax", federal_total,
            jurisdiction="federal",
            rule="income tax + AMT + SE tax + Additional Medicare + NIIT − credits",
@@ -380,8 +402,8 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                "fed.setax",
                "fed.medicare.additional" if addl_med > ZERO else None,
                "fed.niit" if niit_tax > ZERO else None,
-               "fed.credits.ctc" if ctc.after_phaseout > ZERO else None,
-           ) if i))
+               "fed.credits.amt" if amt_credit_used > ZERO else None,
+           ) if i) + tuple(item.id for item in credits.items))
 
     excluded = (Money(inv.tax_exempt_interest)
                 + maxm(ZERO, Money(ret.social_security_gross) - taxable_ss))
@@ -395,8 +417,8 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         tax_special=tax.special, amt_add=amt_add,
         se_tax=se.se_tax, se_deduction=se.se_deduction,
         addl_medicare=addl_med, niit_tax=niit_tax,
-        credits_nonrefundable=ctc.nonrefundable_used,
-        credits_refundable=ctc.refundable, federal_total=federal_total,
+        credits_nonrefundable=credits.nonrefundable_used + amt_credit_used,
+        credits_refundable=credits.refundable, federal_total=federal_total,
         wages=wages, taxable_ss=taxable_ss, excluded_income=excluded,
         pref_income=pref_income, earned_income=earned_income,
         warnings=tuple(warnings),
@@ -413,6 +435,21 @@ def run(inp: TaxInput, data: ResolvedData, *,
         compute_marginals: bool = True) -> TaxResult:
     fed = data.federal
     warnings: list[str] = []
+
+    # Part-year residency (§9.9 v1.5): income is allocated to each state by
+    # the residency-month ratio — a planning-grade approximation of the
+    # per-state part-year allocation schedules (fidelity: approximate).
+    residency_fraction = Decimal(inp.taxpayer.residency_months) / 12
+    if residency_fraction < 1:
+        warnings.append(
+            f"part-year residency: state tax allocated by month ratio "
+            f"({inp.taxpayer.residency_months}/12 in "
+            f"{inp.taxpayer.state.upper() or 'primary state'}"
+            + (f", remainder in {inp.taxpayer.former_state.upper()}"
+               if inp.taxpayer.former_state else
+               ", remaining months unallocated — set taxpayer.former_state "
+               "if another taxing state applies")
+            + ") — approximate; states use their own allocation schedules")
 
     # Steps 1–14 with the state/local circular dependency resolved by
     # fixed-point iteration (§9.9): federal itemized SALT ↔ state liability.
@@ -434,8 +471,16 @@ def run(inp: TaxInput, data: ResolvedData, *,
         if data.state is None:
             break
         state_res = compute_state(inp, ctx, data.state)
+        if residency_fraction < 1:
+            state_res = replace(state_res,
+                                tax=(state_res.tax * residency_fraction)
+                                .round_cent())
         local_res = (compute_local(inp, ctx, state_res, data.local)
                      if data.local is not None else None)
+        if local_res is not None and residency_fraction < 1:
+            local_res = replace(local_res,
+                                tax=(local_res.tax * residency_fraction)
+                                .round_cent())
         new_estimate = state_res.tax + (local_res.tax if local_res else ZERO)
         # When the user supplied the SALT figure, or the deduction is standard,
         # or the SALT cap binds, the loop is already settled — short-circuit.
@@ -453,6 +498,16 @@ def run(inp: TaxInput, data: ResolvedData, *,
     assert fp is not None
     tb = fp.tb
     warnings.extend(fp.warnings)
+
+    # Former state (part-year): the remaining months' allocation.
+    former_res = None
+    if (data.former_state is not None and residency_fraction < 1
+            and inp.taxpayer.former_state):
+        former_res = compute_state(inp, ctx, data.former_state)
+        former_res = replace(
+            former_res,
+            tax=(former_res.tax * (Decimal(1) - residency_fraction))
+            .round_cent())
 
     # 15–16. State and local trace lines -------------------------------------
     if state_res is not None and data.state is not None:
@@ -481,23 +536,31 @@ def run(inp: TaxInput, data: ResolvedData, *,
                rule="local rate schedule applied to its starting income",
                inputs=(f"{state_res.code.lower()}.taxable",)
                if state_res is not None and state_res.taxable > ZERO else ())
+    if former_res is not None:
+        code = former_res.code.lower()
+        tb.add(f"{code}.tax", f"{former_res.code} income tax (part-year)",
+               former_res.tax, jurisdiction=former_res.code,
+               rule=f"full-year {former_res.code} tax × "
+                    f"{12 - inp.taxpayer.residency_months}/12 residency ratio",
+               inputs=("fed.agi",), fidelity=Fidelity.APPROXIMATE)
 
     # 17. Payments, safe harbor, balance due ---------------------------------
     payments = project_payments(inp)
     sh = safe_harbor(inp, fp.federal_total, payments.federal, fed)
     state_tax = state_res.tax if state_res else ZERO
     local_tax = local_res.tax if local_res else ZERO
-    total_tax = fp.federal_total + state_tax + local_tax
-    if abs(total_tax - (fp.federal_total + state_tax + local_tax)) > ZERO:
-        raise InvariantError("jurisdiction taxes do not sum to total")
+    former_tax = former_res.tax if former_res else ZERO
+    total_tax = fp.federal_total + state_tax + local_tax + former_tax
     balance = total_tax - payments.total
     tb.add("total.tax", "Total tax, all jurisdictions", total_tax,
            jurisdiction="all",
-           rule="federal + state + local",
+           rule="federal + state + local"
+                + (" + former state (part-year)" if former_res else ""),
            inputs=tuple(i for i in (
                "fed.tax.total",
                f"{state_res.code.lower()}.tax" if state_res else None,
-               f"{local_res.name.lower()}.tax" if local_res else None) if i))
+               f"{local_res.name.lower()}.tax" if local_res else None,
+               f"{former_res.code.lower()}.tax" if former_res else None) if i))
     tb.add("total.payments", "Withholding and estimated payments projected "
            "through year end", payments.total, jurisdiction="all",
            rule="YTD withholding + per-period × periods remaining + estimates")
@@ -521,11 +584,6 @@ def run(inp: TaxInput, data: ResolvedData, *,
     if sh.met is None:
         warnings.append("Prior-year figures missing — prior-year safe-harbor "
                         "test disabled")
-    if inp.taxpayer.residency_months != 12:
-        from ouch.errors import JurisdictionError
-        raise JurisdictionError(
-            "part-year residency is not supported in v1 (full-year only)",
-            hint="set taxpayer.residency_months = 12 or wait for v1.5")
 
     # 18. Rate metrics (numeric marginal — captures phase-out cliffs) --------
     marginal_fed = Decimal(0)
@@ -553,6 +611,8 @@ def run(inp: TaxInput, data: ResolvedData, *,
         avg_by_jur[state_res.code] = _rate(state_tax, fp.agi)
     if local_res is not None:
         avg_by_jur[local_res.name] = _rate(local_tax, fp.agi)
+    if former_res is not None:
+        avg_by_jur[former_res.code] = _rate(former_tax, fp.agi)
 
     trace = tb.build()
     fidelity = Fidelity.worst(*(i.fidelity for i in trace.items))
@@ -590,4 +650,5 @@ def run(inp: TaxInput, data: ResolvedData, *,
         trace=trace,
         fidelity=fidelity,
         warnings=tuple(warnings),
+        other_state=former_res,
     )

@@ -152,3 +152,69 @@ def _render_w4(console, inp, extra_per_period: Money) -> None:
 def w4(ctx: typer.Context) -> None:
     """Translate the zero-balance solve into W-4 line entries."""
     solve(ctx, target="zero", periods_remaining=None, w4=True)
+
+
+@app.command("estimates")
+def estimates(
+    ctx: typer.Context,
+    target: str = typer.Option("safe-harbor", "--target",
+                               help="safe-harbor (minimum, no penalty) | "
+                                    "zero (no April balance)"),
+    annualized: bool = typer.Option(False, "--annualized",
+                                    help="Use payments.annualized_income_"
+                                         "fractions from the profile (lumpy "
+                                         "income)"),
+) -> None:
+    """Quarterly estimated payment schedule with due dates (spec §10.4)."""
+    from ouch.engine.payments import project_payments, quarterly_schedule
+
+    rt: Runtime = ctx.obj
+    inp = load_input(rt)
+    if annualized and inp.payments.annualized_income_fractions is None:
+        raise UsageError(
+            "--annualized needs payments.annualized_income_fractions in the "
+            "profile",
+            hint='e.g. annualized_income_fractions = ["0.1","0.2","0.3","0.4"]')
+    if not annualized and inp.payments.annualized_income_fractions is not None:
+        inp = inp.model_copy(update={
+            "payments": inp.payments.model_copy(
+                update={"annualized_income_fractions": None})})
+    data = load_data(inp)
+    result = pipeline.run(inp, data, compute_marginals=False)
+    projected_withholding = (result.safe_harbor.projected_federal_payments
+                             - sum((Money(q) for q in (
+                                 inp.payments.estimated.q1_federal,
+                                 inp.payments.estimated.q2_federal,
+                                 inp.payments.estimated.q3_federal,
+                                 inp.payments.estimated.q4_federal)), ZERO))
+    annual, schedule = quarterly_schedule(
+        inp, data.federal, result.federal_total_tax, projected_withholding,
+        target_zero=(target == "zero"))
+
+    console = rt.console()
+    console.print(f"{inp.tax_year} quarterly estimated payments (federal)\n")
+    sh = result.safe_harbor
+    console.print(f"  90% of current-year tax         "
+                  f"{sh.current_year_90pct.fmt():>12}")
+    if sh.prior_year_pct is not None:
+        console.print(f"  {sh.prior_year_pct_label} of prior-year tax        "
+                      f"{sh.prior_year_pct.fmt():>12}")
+    console.print(f"  Withholding (counted as even)   "
+                  f"{projected_withholding.fmt():>12}")
+    console.print(f"  Required via estimates          {annual.fmt():>12}"
+                  f"   (target: {target})\n")
+    for q in schedule:
+        status_mark = ("✔ paid" if q.paid >= q.required and q.required > ZERO
+                       else ("—" if q.required == ZERO else "due"))
+        console.print(f"  Q{q.quarter}  due {q.due_date}   "
+                      f"{q.required.fmt():>12}   {status_mark}"
+                      + (f"  (paid {q.paid.fmt()})" if q.paid > ZERO else ""))
+    if annualized:
+        console.print("\n  ℹ Annualized income installment method: payments "
+                      "follow your income fractions (approximate — the "
+                      "statutory Schedule AI factors are not applied).")
+    else:
+        console.print("\n  ℹ Income lumpy? `--annualized` with "
+                      "payments.annualized_income_fractions shifts the "
+                      "requirement toward the quarters that earn the income.")
+    console.print(f"\n[dim]{DISCLAIMER.splitlines()[0]}[/dim]")

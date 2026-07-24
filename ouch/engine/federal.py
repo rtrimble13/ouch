@@ -81,8 +81,12 @@ def amt_additional(taxable_income: Money, pref_income: Money,
                    deduction_mode: str, standard_amount: Money,
                    salt_deducted: Money, status: FilingStatus,
                    amt: Amt, pref_brackets: list[Bracket],
-                   regular_income_tax: Money) -> Money:
+                   regular_income_tax: Money) -> tuple[Money, Money]:
     """Simplified parallel AMT computation (fidelity: approximate).
+
+    Returns (additional AMT owed, tentative minimum tax). The TMT is needed
+    for the AMT credit carryforward: prior-year AMT becomes a credit usable
+    only to the extent regular tax exceeds TMT (Form 8801).
 
     AMTI ≈ taxable income plus the standard deduction (if taken) or the SALT
     deduction (if itemized) — the two most common preference addbacks. ISO
@@ -113,4 +117,4 @@ def amt_additional(taxable_income: Money, pref_income: Money,
             remaining -= room
             floor += room
 
-    return maxm(ZERO, tmt - regular_income_tax)
+    return maxm(ZERO, tmt - regular_income_tax), tmt

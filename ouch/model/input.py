@@ -38,6 +38,7 @@ class Taxpayer(Person):
     state: str = ""
     locality: str = ""
     residency_months: int = Field(default=12, ge=0, le=12)
+    former_state: str = ""  # part-year: state lived in for 12 − residency_months
 
 
 class Dependent(_Frozen):
@@ -141,6 +142,17 @@ class Deductions(_Frozen):
     itemized: ItemizedDeductions = ItemizedDeductions()
 
 
+class Expenses(_Frozen):
+    """Credit-qualifying expenses (spec §9.8 credit suite)."""
+    dependent_care: Decimal = NonNeg          # qualifying care expenses paid
+    education_aotc: Decimal = NonNeg          # AOTC-qualified expenses
+    education_llc: Decimal = NonNeg           # LLC-qualified expenses
+
+
+class Carryovers(_Frozen):
+    amt_credit: Decimal = NonNeg              # Form 8801 minimum tax credit
+
+
 class Withholding(_Frozen):
     federal_ytd: Decimal = NonNeg
     state_ytd: Decimal = NonNeg
@@ -170,6 +182,19 @@ class Payments(_Frozen):
     withholding: Withholding = Withholding()
     estimated: EstimatedPayments = EstimatedPayments()
     prior_year: PriorYear = PriorYear()
+    # Annualized income installment method (§10.4): fraction of the year's
+    # income earned by each estimated-payment period. Must sum to ~1.
+    annualized_income_fractions: Optional[tuple[Decimal, Decimal, Decimal, Decimal]] = None
+
+    @model_validator(mode="after")
+    def _fractions_sum(self) -> "Payments":
+        if self.annualized_income_fractions is not None:
+            total = sum(self.annualized_income_fractions)
+            if not (Decimal("0.99") <= total <= Decimal("1.01")):
+                raise ValueError(
+                    "annualized_income_fractions must sum to 1.0 "
+                    f"(got {total})")
+        return self
 
 
 class TaxInput(_Frozen):
@@ -180,6 +205,8 @@ class TaxInput(_Frozen):
     income: Income = Income()
     adjustments: Adjustments = Adjustments()
     deductions: Deductions = Deductions()
+    expenses: Expenses = Expenses()
+    carryovers: Carryovers = Carryovers()
     payments: Payments = Payments()
 
     @model_validator(mode="after")

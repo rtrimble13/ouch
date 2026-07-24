@@ -1,0 +1,28 @@
+# Massachusetts — 2026. PROJECTED placeholder carried from 2025. UNVERIFIED placeholder. Flat 5%; the 4% millionaire
+# surtax and the 8.5% short-term gains rate are not modeled in v1
+# (fidelity: approximate).
+meta:
+  jurisdiction: MA
+  year: 2026
+  schema_version: 3
+  verified: false
+  source: ["MA DOR — Part B income tax rate"]
+  notes: "4% surtax above $1M and 8.5% ST-gain rate not modeled."
+
+regime: flat
+starting_point: federal_agi
+rate: 0.05
+
+modifications:
+  subtractions:
+    - {id: social_security, label: "Social Security", source_field: taxable_social_security}
+    - {id: us_treasury_interest, label: "US obligation interest", source_field: treasury_interest}
+
+itemized:
+  allowed: false
+  decouple_from_federal: true
+  salt_deductible: false
+
+credits: []
+capital_gains_treatment: ordinary
+credit_for_taxes_paid_other_states: true

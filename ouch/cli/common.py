@@ -95,8 +95,13 @@ def load_data(inp: TaxInput, *, federal_only: bool = False) -> ResolvedData:
     fed = loader.load_federal(inp.tax_year)
     state = None
     local = None
+    former = None
     if not federal_only and inp.taxpayer.state:
         state = loader.load_state(inp.taxpayer.state, inp.tax_year)
         if inp.taxpayer.locality:
             local = loader.load_local(inp.taxpayer.locality, inp.tax_year)
-    return ResolvedData(federal=fed, state=state, local=local)
+    if (not federal_only and inp.taxpayer.former_state
+            and inp.taxpayer.residency_months < 12):
+        former = loader.load_state(inp.taxpayer.former_state, inp.tax_year)
+    return ResolvedData(federal=fed, state=state, local=local,
+                        former_state=former)

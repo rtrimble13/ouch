@@ -9,6 +9,10 @@ from ouch.model.money import Money, ZERO
 from tests.conftest import make_input
 
 amounts = st.integers(min_value=0, max_value=800_000)
+# Above the EITC's reach: inside the phase-in, more earned income lawfully
+# *reduces* total tax (the credit grows faster), so monotonicity only holds
+# past the phase-out.
+amounts_above_eitc = st.integers(min_value=30_000, max_value=800_000)
 gains = st.integers(min_value=-50_000, max_value=200_000)
 
 
@@ -25,9 +29,10 @@ def _run(data, wages=0, interest=0, ltcg=0, stcg=0, qd=0, od=None):
 
 
 @settings(max_examples=40, deadline=None)
-@given(wages=amounts, bump=st.integers(min_value=1, max_value=50_000))
+@given(wages=amounts_above_eitc, bump=st.integers(min_value=1, max_value=50_000))
 def test_monotonic_in_income(data_federal_only, wages, bump):
-    """More ordinary income never reduces total tax (no credit cliffs here)."""
+    """More ordinary income never reduces total tax, above the EITC region
+    (inside the EITC phase-in the credit legitimately grows faster)."""
     lo = _run(data_federal_only, wages=wages)
     hi = _run(data_federal_only, wages=wages + bump)
     assert hi.federal_total_tax >= lo.federal_total_tax
@@ -40,8 +45,10 @@ def test_marginal_rate_bounded_and_invariants(data_federal_only, wages, ltcg,
     r = _run(data_federal_only, wages=wages, ltcg=ltcg, stcg=stcg, qd=qd)
     assert r.taxable_income >= ZERO
     assert r.agi <= r.total_income
-    assert r.federal_total_tax >= ZERO
-    assert Decimal(0) <= r.effective_rate_agi <= Decimal(1)
+    # Refundable credits (EITC) can drive the total below zero, but never
+    # below the refundable amount itself.
+    assert r.federal_total_tax >= -r.credits_refundable
+    assert Decimal(-1) <= r.effective_rate_agi <= Decimal(1)
 
 
 @settings(max_examples=25, deadline=None)

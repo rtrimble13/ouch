@@ -137,12 +137,50 @@ def test_mfj_ny_nyc_full_stack(data_ny_nyc):
     assert r.effective_rate_agi > Decimal(0)
 
 
-def test_part_year_residency_refused(data_federal_only):
-    from ouch.errors import JurisdictionError
-    inp = make_input(taxpayer={"filing_status": "single", "state": "",
-                               "residency_months": 6})
-    with pytest.raises(JurisdictionError):
-        pipeline.run(inp, data_federal_only, compute_marginals=False)
+def test_part_year_residency_allocates_by_ratio(data_federal_only):
+    """Part-year (M5): state tax scales by residency months, loudly marked
+    approximate. Previously refused with exit 7."""
+    from ouch.engine.pipeline import ResolvedData
+    from ouch.taxdata import loader
+    data = ResolvedData(federal=data_federal_only.federal,
+                        state=loader.load_state("PA", 2025))
+    full = pipeline.run(make_input(
+        taxpayer={"filing_status": "single", "state": "PA"},
+        income={"wages": {"taxpayer_w2": "100000"}}), data,
+        compute_marginals=False)
+    half = pipeline.run(make_input(
+        taxpayer={"filing_status": "single", "state": "PA",
+                  "residency_months": 6}),
+        data, compute_marginals=False)
+    # rebuild half with same income
+    half = pipeline.run(make_input(
+        taxpayer={"filing_status": "single", "state": "PA",
+                  "residency_months": 6},
+        income={"wages": {"taxpayer_w2": "100000"}}), data,
+        compute_marginals=False)
+    assert half.state.tax.round_cent() == (full.state.tax / 2).round_cent()
+    assert any("part-year" in w for w in half.warnings)
+
+
+def test_part_year_with_former_state(data_federal_only):
+    """8 months PA + 4 months MA: both states taxed by their month ratio."""
+    from ouch.engine.pipeline import ResolvedData
+    from ouch.taxdata import loader
+    data = ResolvedData(federal=data_federal_only.federal,
+                        state=loader.load_state("PA", 2025),
+                        former_state=loader.load_state("MA", 2025))
+    r = pipeline.run(make_input(
+        taxpayer={"filing_status": "single", "state": "PA",
+                  "residency_months": 8, "former_state": "MA"},
+        income={"wages": {"taxpayer_w2": "120000"}}), data,
+        compute_marginals=False)
+    assert r.other_state is not None and r.other_state.code == "MA"
+    # PA flat 3.07% × 8/12; MA flat 5% × 4/12 on (AGI − std... MA has no
+    # deduction here) — both scaled from their full-year computations.
+    assert r.state.tax > ZERO and r.other_state.tax > ZERO
+    assert (r.total_tax_all_jurisdictions
+            == r.federal_total_tax + r.state.tax + r.other_state.tax)
+    assert r.trace.has("ma.tax")
 
 
 def test_marginal_rate_numeric(data_federal_only):

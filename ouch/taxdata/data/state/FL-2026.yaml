@@ -1,0 +1,9 @@
+# Florida — 2026. PROJECTED placeholder carried from 2025. No state income tax.
+meta:
+  jurisdiction: FL
+  year: 2026
+  schema_version: 3
+  verified: true
+  source: ["Florida has no personal income tax (Fla. Const. art. VII §5)"]
+
+regime: none

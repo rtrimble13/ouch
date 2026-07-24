@@ -14,7 +14,7 @@ balance is close to zero.
 
 ## Status
 
-This implements **Milestones 1–4** of the [specification](docs/SPEC.md):
+This implements **Milestones 1–5** of the [specification](docs/SPEC.md):
 
 - **M1 — core estimator**: the profile/config system, the pure federal
   calculation engine (preferential rate stacking, SE tax with W-2 wage-base
@@ -45,10 +45,20 @@ This implements **Milestones 1–4** of the [specification](docs/SPEC.md):
   names redacted, `--no-ai` hard-disables all network paths. Requires
   `pip install "ouch[ai]"` and an API key in the environment.
 
-Not yet implemented (later milestones): part-year/multi-state, EITC and the
-remaining credit suite, OCR for scanned documents, 1099-B lot ingestion,
-cross-issuer substantially-identical analysis, profile encryption,
-transcript logging, keyring key storage, on-device model endpoints.
+- **M5 — depth**: the full credit suite with an ordered nonrefundable
+  cascade — EITC (plateau trapezoid, investment-income limit, MFS
+  exclusion), child & dependent care, AOTC (60/40 split) and LLC with
+  MAGI phaseouts, saver's credit tiers; part-year/multi-state allocation
+  by residency-month ratio (`taxpayer.former_state`); AMT credit
+  carryforward (Form 8801 headroom against TMT); `ouch withhold
+  estimates` with due dates and the `--annualized` income-installment
+  method; CA/CO/MA/FL/WA state data files.
+
+Still deferred: OCR for scanned documents, 1099-B lot ingestion, K-1/
+REIT-PTP QBI components, cross-issuer substantially-identical analysis,
+statutory Schedule AI annualization factors, per-state part-year
+schedules, profile encryption, transcript logging, keyring key storage,
+on-device model endpoints, the TUI.
 
 ## Install
 
@@ -83,6 +93,7 @@ ouch estimate --explain            # append the computation trace
 ouch explain fed.tax.preferential  # walk the derivation of any line
 ouch withhold check                # are you on track? safe-harbor status
 ouch withhold solve --target zero --w4
+ouch withhold estimates --annualized    # quarterly schedule, lumpy income
 
 ouch scenario new roth --set income.retirement.roth_conversion=75000
 ouch scenario compare baseline roth

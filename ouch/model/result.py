@@ -188,3 +188,4 @@ class TaxResult:
     trace: ComputationTrace = ComputationTrace(items=())
     fidelity: Fidelity = Fidelity.EXACT  # worst across all lines
     warnings: tuple[str, ...] = ()
+    other_state: Optional[StateResult] = None  # part-year former residence

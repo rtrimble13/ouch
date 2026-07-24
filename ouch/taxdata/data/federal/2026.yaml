@@ -190,6 +190,49 @@ credits:
     refundable_earned_income_pct: 0.15
   other_dependent_credit:
     amount: 500
+  eitc:
+    investment_income_limit: 11_950
+    by_children:
+      - {children: 0, phase_in_rate: 0.0765, earned_income_amount: 8_490,
+         max_credit: 649, phaseout_start_mfj: 17_730,
+         phaseout_start_other: 10_620, phaseout_rate: 0.0765}
+      - {children: 1, phase_in_rate: 0.34, earned_income_amount: 12_730,
+         max_credit: 4_328, phaseout_start_mfj: 30_470,
+         phaseout_start_other: 23_350, phaseout_rate: 0.1598}
+      - {children: 2, phase_in_rate: 0.40, earned_income_amount: 17_880,
+         max_credit: 7_152, phaseout_start_mfj: 30_470,
+         phaseout_start_other: 23_350, phaseout_rate: 0.2106}
+      - {children: 3, phase_in_rate: 0.45, earned_income_amount: 17_880,
+         max_credit: 8_046, phaseout_start_mfj: 30_470,
+         phaseout_start_other: 23_350, phaseout_rate: 0.2106}
+  child_dependent_care:
+    max_expenses_one: 3_000
+    max_expenses_two_plus: 6_000
+    max_rate: 0.35
+    min_rate: 0.20
+    agi_threshold: 15_000
+    step: 2_000
+    step_rate: 0.01
+    qualifying_age_max: 12
+  education:
+    aotc:
+      first_dollar: 2_000
+      second_rate: 0.25
+      second_cap: 2_000
+      refundable_pct: 0.40
+      phaseout: {mfj_start: 160_000, mfj_end: 180_000,
+                 other_start: 80_000, other_end: 90_000}
+    llc:
+      rate: 0.20
+      max_expenses: 10_000
+      phaseout: {mfj_start: 160_000, mfj_end: 180_000,
+                 other_start: 80_000, other_end: 90_000}
+  savers_credit:
+    contribution_cap: 2_000
+    tiers:
+      - {mfj_up_to: 47_500, hoh_up_to: 35_625, other_up_to: 23_750, rate: 0.50}
+      - {mfj_up_to: 51_000, hoh_up_to: 38_250, other_up_to: 25_500, rate: 0.20}
+      - {mfj_up_to: 79_000, hoh_up_to: 59_250, other_up_to: 39_500, rate: 0.10}
 
 estimated_payments:
   safe_harbor:

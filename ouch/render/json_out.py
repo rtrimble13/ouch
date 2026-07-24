@@ -63,6 +63,12 @@ def result_to_dict(result: TaxResult) -> dict[str, Any]:
             "taxable": _m(result.local.taxable),
             "tax": _m(result.local.tax),
         }
+    if result.other_state is not None:
+        r["other_state"] = {
+            "code": result.other_state.code,
+            "tax": _m(result.other_state.tax),
+            "note": "part-year former residence (ratio allocation)",
+        }
     if result.safe_harbor is not None:
         sh = result.safe_harbor
         r["safe_harbor"] = {
