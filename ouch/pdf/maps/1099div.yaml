@@ -1,0 +1,29 @@
+form: 1099-DIV
+id: 1099div
+owner_scoped: false
+signatures:
+  - "Dividends and Distributions"
+  - "OMB No. 1545-0110"
+fields:
+  - box: "1a"
+    labels: ["Total ordinary dividends"]
+    target: income.investment.ordinary_dividends
+    type: money
+    aggregate: sum
+  - box: "1b"
+    labels: ["Qualified dividends"]
+    target: income.investment.qualified_dividends
+    type: money
+    aggregate: sum
+  - box: "2a"
+    labels: ["Total capital gain distr"]
+    target: income.investment.long_term_gains
+    type: money
+    aggregate: sum
+    required: false
+  - box: "4"
+    labels: ["Federal income tax withheld"]
+    target: payments.withholding.federal_ytd
+    type: money
+    aggregate: sum
+    required: false

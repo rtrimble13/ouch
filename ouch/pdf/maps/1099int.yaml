@@ -1,0 +1,24 @@
+form: 1099-INT
+id: 1099int
+owner_scoped: false
+signatures:
+  - "Interest Income"
+  - "OMB No. 1545-0112"
+fields:
+  - box: "1"
+    labels: ["Interest income"]
+    target: income.investment.interest
+    type: money
+    aggregate: sum
+  - box: "3"
+    labels: ["Interest on U.S. Savings Bonds", "U.S. Savings Bonds and Treasury obligations"]
+    target: income.investment.treasury_interest
+    type: money
+    aggregate: sum
+    required: false
+  - box: "8"
+    labels: ["Tax-exempt interest"]
+    target: income.investment.tax_exempt_interest
+    type: money
+    aggregate: sum
+    required: false

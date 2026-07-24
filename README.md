@@ -14,16 +14,24 @@ balance is close to zero.
 
 ## Status
 
-This implements **Milestone 1 (core estimator)** of the
-[specification](docs/SPEC.md): the profile/config system, the pure federal
-calculation engine (preferential rate stacking, SE tax with W-2 wage-base
-coordination, NIIT, Additional Medicare, standard/itemized/QBI, CTC/ODC, a
-simplified AMT), data-driven state and local modules (none/flat/progressive
-regimes), the withholding solver, and full computation traceability.
+This implements **Milestones 1–2** of the [specification](docs/SPEC.md):
 
-Not yet implemented (later milestones): PDF ingestion, scenario
-analysis/sweeps, tax-loss harvesting, the AI CPA agent, part-year/multi-state,
-EITC and the remaining credit suite, profile encryption.
+- **M1 — core estimator**: the profile/config system, the pure federal
+  calculation engine (preferential rate stacking, SE tax with W-2 wage-base
+  coordination, NIIT, Additional Medicare, standard/itemized/QBI, CTC/ODC, a
+  simplified AMT), data-driven state and local modules (none/flat/progressive
+  regimes), the withholding solver, and full computation traceability.
+- **M2 — scenarios and ingestion**: scenario patches (absolute, relative
+  `"+10%"`, and computed `"= path * 0.10"` values) with `run`/`compare`/
+  `sweep`, marginal-cost-of-change reporting, cliff detection, and `[assert]`
+  guardrails; PDF ingestion for W-2 / 1099-INT / 1099-DIV / prior-year 1040
+  with signature-based detection, a confidence-scored extraction cascade,
+  interactive review (nothing is written unconfirmed), and per-field
+  provenance records.
+
+Not yet implemented (later milestones): tax-loss harvesting, the AI CPA
+agent, part-year/multi-state, EITC and the remaining credit suite, OCR for
+scanned documents, 1099-B lot ingestion, profile encryption.
 
 ## Install
 
@@ -58,6 +66,15 @@ ouch estimate --explain            # append the computation trace
 ouch explain fed.tax.preferential  # walk the derivation of any line
 ouch withhold check                # are you on track? safe-harbor status
 ouch withhold solve --target zero --w4
+
+ouch scenario new roth --set income.retirement.roth_conversion=75000
+ouch scenario compare baseline roth
+ouch scenario sweep --var income.retirement.roth_conversion \
+                    --range 0:200000:10000
+
+ouch import pdf ~/tax-docs/2025/*.pdf   # requires: pip install "ouch[pdf]"
+ouch import status                 # checklist of imported documents
+
 ouch data list                     # jurisdictions × years available
 ouch config show --origin          # where every setting came from
 ```

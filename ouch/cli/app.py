@@ -16,7 +16,8 @@ except ImportError:  # typer >= 0.16 vendors click
 
 import ouch
 from ouch.cli import (cmd_config, cmd_data, cmd_estimate, cmd_explain,
-                      cmd_init, cmd_profile, cmd_withhold)
+                      cmd_import, cmd_init, cmd_profile, cmd_scenario,
+                      cmd_withhold)
 from ouch.cli.common import build_runtime
 from ouch.errors import OuchError
 
@@ -78,6 +79,11 @@ app.command("estimate")(cmd_estimate.estimate)
 app.command("explain")(cmd_explain.explain)
 app.add_typer(cmd_withhold.app, name="withhold",
               help="Withholding: check trajectory, solve for a target, W-4 lines")
+app.add_typer(cmd_scenario.app, name="scenario",
+              help="What-if analysis: new | list | show | delete | run | "
+                   "compare | sweep")
+app.add_typer(cmd_import.app, name="import",
+              help="PDF ingestion: pdf | status")
 app.add_typer(cmd_profile.app, name="profile",
               help="show | validate | new | path")
 app.add_typer(cmd_data.app, name="data",

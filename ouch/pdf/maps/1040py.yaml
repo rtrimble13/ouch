@@ -1,0 +1,20 @@
+# Prior-year 1040 — the safe-harbor baseline (spec §11.2). High priority:
+# without payments.prior_year.total_tax the prior-year safe-harbor test
+# cannot run.
+form: 1040 (prior year)
+id: 1040py
+owner_scoped: false
+signatures:
+  - "U.S. Individual Income Tax Return"
+  - "Form 1040"
+fields:
+  - box: "11"
+    labels: ["Adjusted gross income"]
+    target: payments.prior_year.agi
+    type: money
+    aggregate: assign
+  - box: "24"
+    labels: ["Total tax"]
+    target: payments.prior_year.total_tax
+    type: money
+    aggregate: assign
