@@ -328,7 +328,7 @@ ouch --config ~/work/ouch-config.toml estimate
 > **One gap to know about.** The `taxdata.path` key in `config.toml` is *not*
 > consulted — the loader reads the `OUCH_TAXDATA` environment variable
 > directly. Set the variable; putting the path in the config file will silently
-> do nothing. Several other keys are declared with defaults but not yet
+> do nothing ([#7](https://github.com/rtrimble13/ouch/issues/7)). Several other keys are declared with defaults but not yet
 > consumed: `general.currency`, `general.confirm_destructive`,
 > `output.round_display`, `taxdata.strict_year`, `taxdata.allow_projected`,
 > `privacy.encrypt_profiles`, `privacy.redact_in_logs`, and

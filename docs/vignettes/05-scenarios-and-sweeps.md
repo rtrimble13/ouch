@@ -393,7 +393,7 @@ TOTAL TAX                         $ 63,854      $ 63,854
 
 Δ 0 — because Colorado's data was used for both columns, even though the patch
 sets `taxpayer.state = "TX"`. The `relocate-state` template will mislead you if
-you take that result at face value.
+you take that result at face value ([#6](https://github.com/rtrimble13/ouch/issues/6)).
 
 Model relocation with `estimate --state` instead, which resolves the data
 *after* the override:

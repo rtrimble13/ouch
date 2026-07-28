@@ -963,7 +963,7 @@ Override its location with `--config PATH` or `OUCH_CONFIG`.
 | `output.verbosity` | `1` | Active — floor for `-v` |
 | `output.show_citations` | `true` | Active — `explain` shows authorities |
 | `output.round_display` | `"dollar"` | Reserved, not yet consumed |
-| `taxdata.path` | `""` | **Not consumed — use `OUCH_TAXDATA`** |
+| `taxdata.path` | `""` | **Not consumed — use `OUCH_TAXDATA`** ([#7](https://github.com/rtrimble13/ouch/issues/7)) |
 | `taxdata.strict_year` | `true` | Reserved, not yet consumed |
 | `taxdata.allow_projected` | `false` | Reserved, not yet consumed |
 | `privacy.encrypt_profiles` | `false` | Reserved — profile encryption is deferred |
@@ -1393,19 +1393,20 @@ The worst fidelity across all lines appears in the `estimate` header.
 ### Known defects
 
 Behaviour that is wrong rather than merely simplified. Each was reproduced at
-the command line against this version; work around them until they are fixed.
+the command line against this version and has a tracking issue; work around
+them until they are fixed.
 
-| Defect | Effect | Workaround |
-|---|---|---|
-| **A negative `income.business.schedule_c_net` is discarded.** | A $20,000 business loss produces output byte-identical to no business at all, with no warning. | Model a loss with `income.other.other_income` (it flows to AGI), and treat the SE-tax and QBI lines as unreliable in that case. |
-| **`periods_remaining` derives from the resolved tax year, not the profile's.** | Re-running a past-year profile without `--year` projects a full year of remaining paychecks into a closed year and overstates payments. | Pass `--year` to match the profile, or set `periods_remaining` explicitly. |
-| **`withhold check` mixes subtotals.** | "Projected additional withholding" is federal-only while "Projected total payments" is all-jurisdiction, so the columns do not add up when `state_per_period` / `local_per_period` are set. | Trust "Projected total payments"; the line above it is a federal subtotal. |
-| **`harvest simulate` always labels the ordinary offset `(limited)`.** | The marker appears even when the amount is far below the $3,000 cap. | Compare the amount against $3,000 yourself. |
-| **`estimate --compare-filing-status` does nothing.** | Accepted, exits 0, output unchanged. | Run `estimate` once per status with `--set taxpayer.filing_status=…`. |
-| **`estimate --output` is ignored unless `--format json`.** | No file, no warning, exit 0. | Pair `--output` with `--format json`, or redirect with your shell. |
-| **Scenario tags never render.** | `scenario list` shows descriptions but silently swallows `tags` (Rich reads `[retirement]` as markup). | `ouch scenario show NAME`, or read the TOML. |
-| **The `relocate-state` template is misleading.** | Patching `taxpayer.state` does not reload tax data, so the comparison shows Δ 0; its description is also truncated mid-sentence. | Use `estimate --state CODE`. |
-| **The `estimate` footer suggests a command that does not parse.** | It prints ``Run `ouch estimate --explain` for detail``, which exits 2. | Write `ouch --explain estimate`. |
+| Defect | Effect | Workaround | Issue |
+|---|---|---|---|
+| **A negative `income.business.schedule_c_net` is discarded.** | A $20,000 business loss produces output byte-identical to no business at all, with no warning. | Model a loss with `income.other.other_income` (it flows to AGI), and treat the SE-tax and QBI lines as unreliable in that case. | [#3](https://github.com/rtrimble13/ouch/issues/3) |
+| **`periods_remaining` derives from the resolved tax year, not the profile's.** | Re-running a past-year profile without `--year` projects a full year of remaining paychecks into a closed year and overstates payments. | Pass `--year` to match the profile, or set `periods_remaining` explicitly. | [#5](https://github.com/rtrimble13/ouch/issues/5) |
+| **`withhold check` mixes subtotals.** | "Projected additional withholding" is federal-only while "Projected total payments" is all-jurisdiction, so the columns do not add up when `state_per_period` / `local_per_period` are set. | Trust "Projected total payments"; the line above it is a federal subtotal. | [#10](https://github.com/rtrimble13/ouch/issues/10) |
+| **`harvest simulate` always labels the ordinary offset `(limited)`.** | The marker appears even when the amount is far below the $3,000 cap. | Compare the amount against $3,000 yourself. | [#11](https://github.com/rtrimble13/ouch/issues/11) |
+| **`estimate --compare-filing-status` does nothing.** | Accepted, exits 0, output unchanged. | Run `estimate` once per status with `--set taxpayer.filing_status=…`. | [#12](https://github.com/rtrimble13/ouch/issues/12) |
+| **`estimate --output` is ignored unless `--format json`.** | No file, no warning, exit 0. | Pair `--output` with `--format json`, or redirect with your shell. | [#13](https://github.com/rtrimble13/ouch/issues/13) |
+| **Scenario tags never render.** | `scenario list` shows descriptions but silently swallows `tags` (Rich reads `[retirement]` as markup). | `ouch scenario show NAME`, or read the TOML. | [#14](https://github.com/rtrimble13/ouch/issues/14) |
+| **The `relocate-state` template is misleading.** | Patching `taxpayer.state` does not reload tax data, so the comparison shows Δ 0; its description is also truncated mid-sentence. | Use `estimate --state CODE`. | [#6](https://github.com/rtrimble13/ouch/issues/6), [#8](https://github.com/rtrimble13/ouch/issues/8) |
+| **The `estimate` footer suggests a command that does not parse.** | It prints ``Run `ouch estimate --explain` for detail``, which exits 2. | Write `ouch --explain estimate`. | [#9](https://github.com/rtrimble13/ouch/issues/9) |
 
 ### Not implemented
 
