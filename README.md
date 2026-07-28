@@ -60,6 +60,17 @@ statutory Schedule AI annualization factors, per-state part-year
 schedules, profile encryption, transcript logging, keyring key storage,
 on-device model endpoints, the TUI.
 
+## Documentation
+
+- **[User manual](docs/MANUAL.md)** — complete reference: every command and
+  option, the profile and config schemas, tax data files, output formats, exit
+  codes, privacy controls, and known limits.
+- **[Vignettes](docs/vignettes/README.md)** — ten tutorials that teach the whole
+  tool through realistic situations, in order. Start at
+  [vignette 1](docs/vignettes/01-first-estimate.md).
+- **[Specification](docs/SPEC.md)** — the design document the implementation
+  follows.
+
 ## Install
 
 Requires Python 3.11+.
