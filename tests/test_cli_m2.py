@@ -212,3 +212,31 @@ def test_import_output_requires_yes(home, tmp_path):
                 "--owner", "taxpayer", str(pdf))
     assert r.returncode == 0, r.stderr
     assert "Provenance recorded" in out.read_text()
+
+
+TAGGED = """\
+name = "tagged"
+base = "default"
+description = "bunch charitable [2 years]"
+tags = ["retirement", "timing"]
+
+[patch]
+"adjustments.hsa" = 1000
+"""
+
+
+def test_scenario_tags_and_bracketed_descriptions_render(home):
+    """Issue #14: Rich must not swallow '[retirement, timing]' or a
+    bracketed description as console markup."""
+    d = Path(home["XDG_CONFIG_HOME"]) / "ouch" / "scenarios"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "tagged.toml").write_text(TAGGED)
+
+    r = run_cli(home, "scenario", "list")
+    assert r.returncode == 0, r.stderr
+    assert "bunch charitable [2 years]  [retirement, timing]" in r.stdout
+
+    r = run_cli(home, "scenario", "show", "tagged")
+    assert r.returncode == 0, r.stderr
+    assert "bunch charitable [2 years]" in r.stdout
+    assert "tags: retirement, timing" in r.stdout

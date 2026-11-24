@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 import typer
+from rich.text import Text
 
 from ouch import DISCLAIMER
 from ouch.cli.common import Runtime, data_resolver, prepare_raw
@@ -95,7 +96,9 @@ def list_cmd(ctx: typer.Context) -> None:
     for p in entries:
         s = load_scenario(str(p))
         tags = f"  [{', '.join(s.tags)}]" if s.tags else ""
-        console.print(f"  {p.stem:<24} {s.description}{tags}")
+        # Descriptions and tags are user text: never parse them as markup
+        # (Rich would swallow "[retirement]" as an unknown style tag).
+        console.print(f"  {p.stem:<24} {s.description}{tags}", markup=False)
 
 
 @app.command("show")
@@ -103,13 +106,15 @@ def show(ctx: typer.Context, name: str = typer.Argument(...)) -> None:
     rt: Runtime = ctx.obj
     s = _load(rt, name)
     console = rt.console()
-    console.print(f"[bold]{s.name}[/bold] (base: {s.base})")
+    console.print(Text.assemble((s.name, "bold"), f" (base: {s.base})"))
     if s.description:
-        console.print(f"  {s.description}")
+        console.print(f"  {s.description}", markup=False)
+    if s.tags:
+        console.print(f"  tags: {', '.join(s.tags)}", markup=False)
     for path, value in s.patch.items():
-        console.print(f"  {path} = {value!r}")
+        console.print(f"  {path} = {value!r}", markup=False)
     for a in s.assertions:
-        console.print(f"  assert {a.path} {a.op} {a.value}")
+        console.print(f"  assert {a.path} {a.op} {a.value}", markup=False)
 
 
 @app.command("delete")
@@ -167,7 +172,7 @@ def compare(ctx: typer.Context,
     width = 14
     header = f"{'':28}" + "".join(f"{r.scenario.name[:width - 1]:>{width}}"
                                   for r in runs)
-    console.print(header)
+    console.print(header, markup=False)
     console.print("─" * len(header))
     for label, values in rows:
         line = f"{label:<28}"
@@ -187,7 +192,7 @@ def compare(ctx: typer.Context,
         dtax = (r.result.total_tax_all_jurisdictions
                 - baseline.total_tax_all_jurisdictions)
         console.print(f"\n{r.scenario.name}: Δ tax vs baseline "
-                      f"{dtax.fmt()}")
+                      f"{dtax.fmt()}", markup=False)
         cost = runner_mod.marginal_cost(baseline, r)
         if cost is not None:
             console.print(f"  Marginal cost of the change: "
@@ -201,7 +206,7 @@ def compare(ctx: typer.Context,
                 and r.result.amt_additional > ZERO):
             console.print("  ⚠ Triggers the alternative minimum tax")
         for failure in r.assertion_failures:
-            console.print(f"  ✖ {failure}")
+            console.print(f"  ✖ {failure}", markup=False)
     if any(r.assertion_failures for r in runs):
         raise ComputationError("scenario assertion violated (see above)")
     console.print(f"\n[dim]{DISCLAIMER.splitlines()[0]}[/dim]")
