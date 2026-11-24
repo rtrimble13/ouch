@@ -139,6 +139,10 @@ class ToolExecutor:
     build: Callable[[dict], TaxInput]
     data: ResolvedData
     baseline: TaxResult
+    # Resolves tax data for a patched input (scenario/sweep tools), so a
+    # jurisdiction-changing patch loads the new jurisdiction's rates. None
+    # falls back to the baseline's fixed data.
+    resolve: Callable[[TaxInput], ResolvedData] | None = None
     numbers: set[Decimal] = field(default_factory=set)
     access_log: list[tuple[str, dict]] = field(default_factory=list)
 
@@ -223,9 +227,13 @@ class ToolExecutor:
                 "ancestors": [self._item_dict(a)
                               for a in self.baseline.trace.ancestors(id)]}
 
+    def _data_for(self, inp: TaxInput) -> ResolvedData:
+        return self.resolve(inp) if self.resolve is not None else self.data
+
     def _tool_run_scenario(self, patch: dict) -> dict:
         patched = apply_patch(self.base_raw, patch)
-        result = pipeline.run(self.build(patched), self.data,
+        inp = self.build(patched)
+        result = pipeline.run(inp, self._data_for(inp),
                               compute_marginals=True)
         delta = (result.total_tax_all_jurisdictions
                  - self.baseline.total_tax_all_jurisdictions)
@@ -249,8 +257,8 @@ class ToolExecutor:
                              "limit; use a coarser step"}
         from ouch.scenario.runner import sweep as run_sweep
         points = run_sweep(self.base_raw, variable, lo_d, hi_d, step_d,
-                           ["total_tax_all_jurisdictions"], self.data,
-                           self.build)
+                           ["total_tax_all_jurisdictions"],
+                           self.resolve or self.data, self.build)
         return {"variable": variable, "points": [
             {"value": str(p.value), "total_tax": str(p.total_tax),
              "step_marginal": None if p.step_marginal is None

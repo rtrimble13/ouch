@@ -15,7 +15,7 @@ from ouch.agent import context as context_mod
 from ouch.agent.client import make_client
 from ouch.agent.session import AgentSession
 from ouch.agent.tools import ToolExecutor
-from ouch.cli.common import Runtime, load_data, prepare_raw
+from ouch.cli.common import Runtime, data_resolver, prepare_raw
 from ouch.config import profile as profile_mod
 from ouch.engine import pipeline
 from ouch.errors import AgentError
@@ -46,7 +46,8 @@ def _build_session(rt: Runtime, assume_yes: bool) -> AgentSession:
     raw = context_mod.redact_profile(raw)
     build = lambda r: profile_mod.build_tax_input(r, rt.tax_year)  # noqa: E731
     inp = build(raw)
-    data = load_data(inp)
+    resolve = data_resolver()
+    data = resolve(inp)
 
     # Explicit confirmation before the first transmission (spec §14.7)
     require_confirm = str(rt.settings.get("ai.require_confirmation",
@@ -58,7 +59,7 @@ def _build_session(rt: Runtime, assume_yes: bool) -> AgentSession:
 
     baseline = pipeline.run(inp, data)
     executor = ToolExecutor(base_raw=raw, build=build, data=data,
-                            baseline=baseline)
+                            baseline=baseline, resolve=resolve)
     system = context_mod.system_prompt(inp, data.federal.meta.verified)
     client = make_client(rt.settings)
     return AgentSession(client=client, executor=executor, system=system)

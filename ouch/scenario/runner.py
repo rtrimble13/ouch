@@ -21,6 +21,17 @@ from ouch.scenario.model import (Scenario, apply_patch, get_path,
 
 DEFAULT_CLIFF_THRESHOLD = Decimal("0.03")  # marginal-rate jump between steps
 
+# Tax data for a run: either fixed, or resolved from each patched input. A
+# patch can change the jurisdiction (taxpayer.state / locality /
+# former_state / residency_months) or the year, so callers that accept
+# arbitrary patches must pass a resolver — fixed data would apply the
+# original jurisdiction's rates under the new one's name.
+DataSource = ResolvedData | Callable[[TaxInput], ResolvedData]
+
+
+def resolve_data(source: DataSource, inp: TaxInput) -> ResolvedData:
+    return source if isinstance(source, ResolvedData) else source(inp)
+
 
 def result_metric(result: TaxResult, dotted: str) -> Decimal:
     """Resolve a metric path like 'result.marginal_rate_federal' or
@@ -86,12 +97,13 @@ def _patch_delta(base_raw: dict, scenario: Scenario) -> Money:
     return delta
 
 
-def run_scenario(base_raw: dict, scenario: Scenario, data: ResolvedData,
+def run_scenario(base_raw: dict, scenario: Scenario, data: DataSource,
                  build_input: Callable[[dict], TaxInput], *,
                  compute_marginals: bool = True) -> ScenarioRun:
     patched = apply_patch(base_raw, scenario.patch)
     inp = build_input(patched)
-    result = pipeline.run(inp, data, compute_marginals=compute_marginals)
+    result = pipeline.run(inp, resolve_data(data, inp),
+                          compute_marginals=compute_marginals)
     return ScenarioRun(
         scenario=scenario, input=inp, result=result,
         assertion_failures=tuple(check_assertions(scenario, result)),
@@ -123,7 +135,7 @@ class SweepPoint:
 
 
 def sweep(base_raw: dict, var: str, lo: Decimal, hi: Decimal, step: Decimal,
-          metrics: list[str], data: ResolvedData,
+          metrics: list[str], data: DataSource,
           build_input: Callable[[dict], TaxInput], *,
           cliff_threshold: Decimal = DEFAULT_CLIFF_THRESHOLD) -> list[SweepPoint]:
     if step <= 0 or hi < lo:
@@ -145,7 +157,8 @@ def sweep(base_raw: dict, var: str, lo: Decimal, hi: Decimal, step: Decimal,
         fp = inp.fingerprint()
         result = cache.get(fp)
         if result is None:
-            result = pipeline.run(inp, data, compute_marginals=need_marginals)
+            result = pipeline.run(inp, resolve_data(data, inp),
+                                  compute_marginals=need_marginals)
             cache[fp] = result
         total = result.total_tax_all_jurisdictions.round_cent().amount
         step_marginal: Decimal | None = None

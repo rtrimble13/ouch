@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from rich.console import Console
 
@@ -112,17 +112,39 @@ def load_input(rt: Runtime, *, extra_overrides: list[str] | None = None,
     return profile_mod.build_tax_input(raw, rt.tax_year)
 
 
+def _data_key(inp: TaxInput, federal_only: bool) -> tuple[int, str, str, str]:
+    """Everything `load_data` selects files by: (year, state, locality,
+    former state). Blank means that file is not loaded."""
+    t = inp.taxpayer
+    state = t.state.upper() if not federal_only and t.state else ""
+    locality = t.locality.upper() if state and t.locality else ""
+    former = (t.former_state.upper()
+              if not federal_only and t.former_state and t.residency_months < 12
+              else "")
+    return inp.tax_year, state, locality, former
+
+
 def load_data(inp: TaxInput, *, federal_only: bool = False) -> ResolvedData:
-    fed = loader.load_federal(inp.tax_year)
-    state = None
-    local = None
-    former = None
-    if not federal_only and inp.taxpayer.state:
-        state = loader.load_state(inp.taxpayer.state, inp.tax_year)
-        if inp.taxpayer.locality:
-            local = loader.load_local(inp.taxpayer.locality, inp.tax_year)
-    if (not federal_only and inp.taxpayer.former_state
-            and inp.taxpayer.residency_months < 12):
-        former = loader.load_state(inp.taxpayer.former_state, inp.tax_year)
+    year, state_code, locality, former_code = _data_key(inp, federal_only)
+    fed = loader.load_federal(year)
+    state = loader.load_state(state_code, year) if state_code else None
+    local = loader.load_local(locality, year) if locality else None
+    former = loader.load_state(former_code, year) if former_code else None
     return ResolvedData(federal=fed, state=state, local=local,
                         former_state=former)
+
+
+def data_resolver(*, federal_only: bool = False
+                  ) -> Callable[[TaxInput], ResolvedData]:
+    """Resolve tax data from each input rather than once, so a scenario that
+    patches the jurisdiction or year is computed with that jurisdiction's
+    rates. Cached by `_data_key`, so a sweep reads each file once."""
+    cache: dict[tuple[int, str, str, str], ResolvedData] = {}
+
+    def resolve(inp: TaxInput) -> ResolvedData:
+        key = _data_key(inp, federal_only)
+        if key not in cache:
+            cache[key] = load_data(inp, federal_only=federal_only)
+        return cache[key]
+
+    return resolve

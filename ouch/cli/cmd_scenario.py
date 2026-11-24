@@ -8,7 +8,7 @@ from typing import List, Optional
 import typer
 
 from ouch import DISCLAIMER
-from ouch.cli.common import Runtime, load_data, prepare_raw
+from ouch.cli.common import Runtime, data_resolver, prepare_raw
 from ouch.config import profile as profile_mod
 from ouch.engine import pipeline
 from ouch.errors import ComputationError, UsageError
@@ -141,8 +141,9 @@ def compare(ctx: typer.Context,
     base = scenarios[0].base
     raw = _base_raw(rt, base)
     build = _builder(rt)
-    inp0 = build(raw)
-    data = load_data(inp0)
+    # Per-scenario data: a patch to taxpayer.state etc. must load that
+    # jurisdiction's rates, not reuse the base profile's.
+    data = data_resolver()
 
     runs = [runner_mod.run_scenario(raw, s, data, build) for s in scenarios]
     baseline = runs[0].result
@@ -228,7 +229,7 @@ def sweep_cmd(
 
     raw = _base_raw(rt, "default")
     build = _builder(rt)
-    data = load_data(build(raw))
+    data = data_resolver()
     points = runner_mod.sweep(
         raw, var, lo, hi, step, metrics, data, build,
         cliff_threshold=Decimal(str(cliff_threshold)))

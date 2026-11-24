@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -152,3 +154,43 @@ def test_import_unrecognized_form(home, tmp_path):
     pdf = _make_pdf(tmp_path / "junk.pdf", ["A grocery list", "milk"])
     r = run_cli(home, "import", "pdf", "--yes", str(pdf))
     assert "not a recognized tax form" in r.stdout
+
+
+CO_PROFILE = """\
+schema_version = 2
+tax_year = 2025
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "CO"
+
+[income.wages]
+taxpayer_w2 = 310000
+"""
+
+
+def test_relocate_state_template_reports_real_difference(home):
+    """Issue #6 reproduction: CO → TX via the template must show Colorado's
+    whole income tax as the Δ, matching `estimate --state TX`."""
+    profiles = Path(home["XDG_CONFIG_HOME"]) / "ouch" / "profiles"
+    (profiles / "default.toml").write_text(CO_PROFILE)
+    assert run_cli(home, "scenario", "new", "tx-move",
+                   "--template", "relocate-state").returncode == 0
+
+    def total(*args):
+        r = run_cli(home, "--format", "json", "estimate", *args)
+        assert r.returncode == 0, r.stderr
+        return Decimal(json.loads(r.stdout)["result"]
+                       ["total_tax_all_jurisdictions"])
+
+    expected = total("--state", "TX") - total()
+    assert expected < 0
+    r = run_cli(home, "scenario", "compare", "baseline", "tx-move")
+    assert r.returncode == 0, r.stderr
+    delta_line = next(l for l in r.stdout.splitlines() if "Δ tax" in l)
+    shown_delta = -Decimal(re.search(r"\(([\d,]+)\)", delta_line)
+                           .group(1).replace(",", ""))
+    assert abs(shown_delta - expected) <= 1, delta_line
+
+    shown = run_cli(home, "scenario", "show", "tx-move")
+    assert "cost of living are outside ouch's scope)" in shown.stdout

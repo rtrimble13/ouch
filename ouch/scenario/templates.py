@@ -40,8 +40,7 @@ tags        = ["itemized"]
 ''',
     "relocate-state": '''name        = "{name}"
 base        = "{base}"
-description = "Move to a no-income-tax state (income tax only — property,"
-              # sales, insurance and cost of living are outside ouch's scope
+description = "Move to a no-income-tax state (income tax only — property, sales, insurance and cost of living are outside ouch's scope)"
 tags        = ["relocation"]
 
 [patch]
