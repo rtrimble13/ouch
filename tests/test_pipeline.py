@@ -245,3 +245,43 @@ def test_marginal_rate_includes_additional_medicare_with_box5(data_federal_only)
     r_explicit = pipeline.run(explicit, data_federal_only)
     r_implicit = pipeline.run(implicit, data_federal_only)
     assert r_explicit.marginal_rate_federal == r_implicit.marginal_rate_federal
+
+
+# --- Issue #3: Schedule C losses reduce AGI ---------------------------------
+
+
+def test_schedule_c_loss_reduces_agi(data_federal_only):
+    """Single, wages 100,000, Schedule C −20,000 (Schedule 1 line 3).
+    total income = AGI = 80,000 ; taxable = 80,000 − 15,000 = 65,000
+    10%×11,925 = 1,192.50 ; 12%×36,550 = 4,386.00 ; 22%×16,525 = 3,635.50
+    total = 9,214.00 — and no SE tax on a loss."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
+                             "business": {"schedule_c_net": "-20000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.total_income == Money(80_000)
+    assert r.agi == Money(80_000)
+    assert r.taxable_income == Money(65_000)
+    assert r.se_tax == ZERO
+    assert r.federal_total_tax.round_cent() == Money("9214.00")
+
+
+def test_schedule_c_loss_is_disclosed(data_federal_only):
+    """The loss-limitation rules are out of scope — that must be loud."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
+                             "business": {"schedule_c_net": "-20000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert any("Schedule C loss" in w and "not modeled" in w
+               for w in r.warnings)
+    total = r.trace.get("fed.income.total")
+    assert str(total.fidelity) == "approximate"
+    assert str(r.fidelity) == "approximate"
+
+
+def test_schedule_c_profit_unchanged_and_exact(data_federal_only):
+    """No disclosure noise when there is no loss."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
+                             "business": {"schedule_c_net": "20000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.total_income == Money(120_000)
+    assert not any("Schedule C loss" in w for w in r.warnings)
+    assert str(r.trace.get("fed.income.total").fidelity) == "exact"

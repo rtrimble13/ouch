@@ -195,8 +195,18 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         + Money(oth.rental_net) + Money(oth.k1_ordinary)
         + Money(oth.unemployment) + Money(oth.other_income)
         + netting.ordinary_component)
-    income_ex_ss = (wages + maxm(se_net, ZERO) + ordinary_unearned_ex_ss
+    # Schedule C flows to Schedule 1 line 3 unfloored: a business loss
+    # reduces total income. (SE tax, SE health and earned income floor it
+    # separately, as the statute does.)
+    income_ex_ss = (wages + se_net + ordinary_unearned_ex_ss
                     + pref_income + netting.unrecap_1250 + netting.collectibles)
+    se_loss_warnings: tuple[str, ...] = ()
+    if se_net < ZERO:
+        se_loss_warnings = (
+            f"Schedule C loss of ${(-se_net).round_dollar().amount:,.0f} "
+            "reduces income in full — at-risk, passive-activity, hobby-loss "
+            "and excess-business-loss (§461(l)) limits are not modeled",)
+        warnings.extend(se_loss_warnings)
     agi_ex_ss = income_ex_ss - adjustments_total
     taxable_ss = _taxable_social_security(
         agi_ex_ss, Money(inv.tax_exempt_interest),
@@ -215,7 +225,9 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     tb.add("fed.income.total", "Total income", total_income,
            jurisdiction="federal", rule="sum of all income included in gross "
            "income, by rate group", form_ref="1040 line 9", authority="IRC §61",
-           inputs=("fed.income.wages", "fed.income.capital"))
+           inputs=("fed.income.wages", "fed.income.capital"),
+           fidelity=Fidelity.APPROXIMATE if se_loss_warnings else Fidelity.EXACT,
+           warnings=se_loss_warnings)
     tb.add("fed.agi", "Adjusted gross income", agi, jurisdiction="federal",
            rule="total income less above-the-line adjustments",
            form_ref="1040 line 11", authority="IRC §62",
