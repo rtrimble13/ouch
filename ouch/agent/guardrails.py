@@ -93,7 +93,7 @@ def annotate(text: str, registry: set[Decimal]) -> tuple[str, list[str]]:
     warnings = []
     if extract_dollar_figures(text) and not has_citations(text):
         warnings.append("response cites no line items — verify figures with "
-                        "`ouch estimate --explain`")
+                        "`ouch --explain estimate`")
     return text, warnings
 
 
@@ -107,6 +107,6 @@ CORRECTION_PROMPT = (
 REFUSAL_TEXT = (
     "I can't give you a grounded answer: the model produced figures that "
     "don't trace to the engine's computation, twice. No numbers were "
-    "invented on your behalf — run `ouch estimate --explain` for the "
+    "invented on your behalf — run `ouch --explain estimate` for the "
     "deterministic result, or re-ask a more specific question."
 )

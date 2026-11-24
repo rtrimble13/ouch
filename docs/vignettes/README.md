@@ -14,9 +14,9 @@ Work through them in order and you will have used every command `ouch` has.
 > model's *answers* there are written for the tutorial, since running a live
 > session would transmit data. It says so at the top.)
 >
-> Where a command misbehaves, the vignettes say so and give the workaround. The
-> full list is in the manual's
-> [known defects](../MANUAL.md#known-defects) table.
+> Where `ouch` simplifies the law, the vignettes say so. The manual's
+> [accuracy and known limits](../MANUAL.md#16-accuracy-fidelity-and-known-limits)
+> section lists every approximation.
 
 ---
 

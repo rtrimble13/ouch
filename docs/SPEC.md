@@ -1051,7 +1051,7 @@ ouch estimate [OPTIONS]
 │  ⚠  Safe harbor NOT met — see `ouch withhold check`                    │
 │  ⚠  Tax data for 2026 is unverified (projected)                        │
 ╰────────────────────────────────────────────────────────────────────────╯
-  Estimate only — not tax advice. Run `ouch estimate --explain` for detail.
+  Estimate only — not tax advice. Run `ouch --explain estimate` for detail.
 ```
 
 Numbers above are illustrative of *format*, not of any real computation.

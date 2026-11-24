@@ -6,7 +6,6 @@ transmission, --no-ai hard-disables all network paths for a run.
 
 from __future__ import annotations
 
-import datetime as _dt
 from typing import Optional
 
 import typer
@@ -16,7 +15,7 @@ from ouch.agent import context as context_mod
 from ouch.agent.client import make_client
 from ouch.agent.session import AgentSession
 from ouch.agent.tools import ToolExecutor
-from ouch.cli.common import Runtime, load_data
+from ouch.cli.common import Runtime, data_resolver, prepare_raw
 from ouch.config import profile as profile_mod
 from ouch.engine import pipeline
 from ouch.errors import AgentError
@@ -29,7 +28,7 @@ REVIEW_PROMPT = (
 
 
 def _gate(rt: Runtime, assume_yes: bool) -> None:
-    if getattr(rt, "no_ai", False):
+    if rt.no_ai:
         raise AgentError(
             "AI is hard-disabled for this run (--no-ai)")
     enabled = rt.settings.get("ai.enabled", False)
@@ -42,25 +41,25 @@ def _gate(rt: Runtime, assume_yes: bool) -> None:
 
 
 def _build_session(rt: Runtime, assume_yes: bool) -> AgentSession:
-    from ouch.cli.common import _derive_periods_remaining
     raw, _ = profile_mod.load_profile_raw(rt.profile_name)
-    _derive_periods_remaining(raw, _dt.date.today(), rt.tax_year)
+    prepare_raw(rt, raw)
     raw = context_mod.redact_profile(raw)
     build = lambda r: profile_mod.build_tax_input(r, rt.tax_year)  # noqa: E731
     inp = build(raw)
-    data = load_data(inp)
+    resolve = data_resolver()
+    data = resolve(inp)
 
     # Explicit confirmation before the first transmission (spec §14.7)
     require_confirm = str(rt.settings.get("ai.require_confirmation",
                                           True)).lower() not in ("0", "false")
     if require_confirm and not assume_yes:
-        rt.console().print(
+        rt.terminal_console().print(   # the prompt below depends on it
             f"⚠ {context_mod.transmission_notice(rt.settings, inp)}")
         typer.confirm("  Proceed?", abort=True)
 
     baseline = pipeline.run(inp, data)
     executor = ToolExecutor(base_raw=raw, build=build, data=data,
-                            baseline=baseline)
+                            baseline=baseline, resolve=resolve)
     system = context_mod.system_prompt(inp, data.federal.meta.verified)
     client = make_client(rt.settings)
     return AgentSession(client=client, executor=executor, system=system)
@@ -95,6 +94,9 @@ def agent(ctx: typer.Context,
                                    help="Skip the transmission confirmation")) -> None:
     """Interactive AI CPA session."""
     rt: Runtime = ctx.obj
+    rt.require_terminal("`agent`, which is interactive",
+                        hint="use `ouch --output FILE ask \"…\"` to capture "
+                             "a single answer")
     _gate(rt, yes)
     session = _build_session(rt, yes)
     console = rt.console()

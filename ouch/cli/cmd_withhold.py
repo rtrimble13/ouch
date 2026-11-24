@@ -25,8 +25,18 @@ def check(ctx: typer.Context) -> None:
     console = rt.console()
     sh = result.safe_harbor
 
+    # Every line in this walk is all-jurisdiction, so withheld-to-date +
+    # projected withholding + estimated payments = projected total payments
+    # (the same composition as engine.payments.project_payments).
     w = inp.payments.withholding
-    additional = Money(w.federal_per_period) * w.periods_remaining
+    e = inp.payments.estimated
+    per_period = (Money(w.federal_per_period) + Money(w.state_per_period)
+                  + Money(w.local_per_period))
+    additional = per_period * w.periods_remaining
+    estimated = sum((Money(x) for x in (
+        e.q1_federal, e.q2_federal, e.q3_federal, e.q4_federal,
+        e.state_total, e.local_total)), ZERO)
+    multi = w.state_per_period > 0 or w.local_per_period > 0
 
     console.print(f"Projected total tax                     "
                   f"{result.total_tax_all_jurisdictions.fmt():>12}")
@@ -34,7 +44,16 @@ def check(ctx: typer.Context) -> None:
                   f"{(Money(w.federal_ytd) + Money(w.state_ytd) + Money(w.local_ytd)).fmt():>12}")
     console.print(f"Projected additional withholding        {additional.fmt():>12}"
                   f"     ({w.periods_remaining} periods × "
-                  f"$ {Money(w.federal_per_period).round_dollar().amount:,.0f})")
+                  f"$ {per_period.round_dollar().amount:,.0f})")
+    if multi:
+        console.print("  per period: " + " · ".join(
+            f"{name} {Money(v).fmt()}" for name, v in (
+                ("federal", w.federal_per_period),
+                ("state", w.state_per_period),
+                ("local", w.local_per_period)) if v > 0))
+    if estimated > ZERO:
+        console.print(f"Estimated payments                      "
+                      f"{estimated.fmt():>12}")
     console.print(f"Projected total payments                "
                   f"{result.total_payments.fmt():>12}")
     console.print("─" * 60)

@@ -40,7 +40,7 @@ $ ouch estimate --state OR
 
 Files are resolved in this order, **first hit wins**:
 
-1. `$OUCH_TAXDATA/`
+1. `taxdata.path` from `config.toml`, or `$OUCH_TAXDATA`, which overrides it
 2. `~/.local/share/ouch/taxdata/`
 3. the files packaged inside `ouch`
 
@@ -315,7 +315,7 @@ Highest wins:
 | `OUCH_PROFILE` | Default profile |
 | `OUCH_TAX_YEAR` | Default tax year |
 | `OUCH_CONFIG` | Alternate `config.toml` |
-| `OUCH_TAXDATA` | Highest-priority tax data directory |
+| `OUCH_TAXDATA` | Tax data directory — overrides `taxdata.path` |
 | `OUCH_AI_ENABLED` | Turn the AI feature on |
 | `OUCH_NO_COLOR` / `NO_COLOR` | Disable colour |
 
@@ -325,11 +325,18 @@ Or point at a whole different config for one run:
 ouch --config ~/work/ouch-config.toml estimate
 ```
 
-> **One gap to know about.** The `taxdata.path` key in `config.toml` is *not*
-> consulted — the loader reads the `OUCH_TAXDATA` environment variable
-> directly. Set the variable; putting the path in the config file will silently
-> do nothing. Several other keys are declared with defaults but not yet
-> consumed: `general.currency`, `general.confirm_destructive`,
+> **Your own data directory.** Set it once in `config.toml` instead of
+> exporting a variable in every shell:
+>
+> ```toml
+> [taxdata]
+> path = "~/tax/ouch-data"
+> ```
+>
+> `OUCH_TAXDATA` still overrides it for a single run. If the directory doesn't
+> exist, `ouch` stops with exit 3 and names where the path was set, rather
+> than quietly using the shipped data. Several keys are declared with defaults
+> but not yet consumed: `general.currency`, `general.confirm_destructive`,
 > `output.round_display`, `taxdata.strict_year`, `taxdata.allow_projected`,
 > `privacy.encrypt_profiles`, `privacy.redact_in_logs`, and
 > `ai.transcript_log`. The
@@ -449,6 +456,12 @@ Write straight to a file:
 ouch --format json --output ~/estimates/2026-07.json estimate
 ```
 
+`--output` captures whatever a command would print, in any format: the table
+panel, `withhold check`, a CSV sweep. The file is written only if the command
+succeeds, so a failed run leaves no stale or partial snapshot, and the exit
+code tells your script why. A missing directory is exit 2 before any work is
+done.
+
 ### CSV
 
 ```bash
@@ -468,12 +481,13 @@ income.retirement.roth_conversion,total_tax,step_marginal,cliff,total_tax_all_ju
 
 | Command | `json` | `csv` |
 |---|---|---|
-| `estimate` | ✔ (and `--output`) | falls back to the table |
+| `estimate` | ✔ (incl. `--compare-filing-status`) | falls back to the table |
 | `scenario sweep` | falls back to the table | ✔ |
 | everything else | unchanged | unchanged |
 
 `--format markdown` currently renders the same as `table`. `profile show` and
-`data show` always emit JSON regardless of `--format`.
+`data show` always emit JSON regardless of `--format`. Every command honours
+`--output`.
 
 ---
 
@@ -566,12 +580,12 @@ override, with history.
 
 ## What you learned
 
-- Tax data resolves `$OUCH_TAXDATA` → XDG data dir → packaged, first hit wins,
-  so **your file shadows the shipped one**.
+- Tax data resolves `taxdata.path` (or `$OUCH_TAXDATA`) → XDG data dir →
+  packaged, first hit wins, so **your file shadows the shipped one**.
 - A ten-line YAML file added a real jurisdiction and surfaced $3,398 of tax.
 - A malformed data file is exit 5, never a silent zero.
-- `config show --origin` answers "why is this setting what it is"; the
-  `taxdata.path` key is a known gap — use the environment variable.
+- `config show --origin` answers "why is this setting what it is", including
+  where `taxdata.path` came from.
 - JSON amounts are decimal strings; `input_fingerprint` ties a result to its
   input.
 - Exit codes are stable enough to build CI on, and exit 9 means `ouch` refused

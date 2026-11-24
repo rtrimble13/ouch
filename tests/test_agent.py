@@ -279,3 +279,19 @@ def test_provider_refusal_raises_agent_error(executor):
     ])
     with pytest.raises(AgentError):
         session.ask("what do I owe?")
+
+
+def test_run_scenario_tool_reloads_jurisdiction():
+    """Issue #6, agent path: the run_scenario tool must load the patched
+    state's data, or the model is grounded on a wrong number."""
+    from ouch.cli.common import data_resolver
+    base = dict(BASE, taxpayer={"filing_status": "single", "state": "NY"})
+    resolve = data_resolver()
+    baseline = pipeline.run(_build(base), resolve(_build(base)),
+                            compute_marginals=False)
+    ex = ToolExecutor(base_raw=base, build=_build, data=resolve(_build(base)),
+                      baseline=baseline, resolve=resolve)
+    out = ex._tool_run_scenario({"taxpayer.state": "TX"})
+    assert out["scenario"]["state"]["code"] == "TX"
+    assert out["scenario"]["state"]["tax"] == "0.00"
+    assert Decimal(out["delta_total_tax"]) == -baseline.state.tax.round_cent().amount

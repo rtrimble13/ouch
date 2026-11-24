@@ -270,7 +270,7 @@ refusal:
 ```
 I can't give you a grounded answer: the model produced figures that don't trace
 to the engine's computation, twice. No numbers were invented on your behalf —
-run `ouch estimate --explain` for the deterministic result, or re-ask a more
+run `ouch --explain estimate` for the deterministic result, or re-ask a more
 specific question.
 ```
 
@@ -283,7 +283,7 @@ A response containing dollar figures but no `[line.id]` citations is flagged
 rather than suppressed:
 
 ```
-⚠ response cites no line items — verify figures with `ouch estimate --explain`
+⚠ response cites no line items — verify figures with `ouch --explain estimate`
 ```
 
 ### Scope

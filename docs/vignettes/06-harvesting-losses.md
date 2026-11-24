@@ -271,7 +271,7 @@ $ ouch harvest simulate --sell L-0217 --sell L-0431 --sell L-0388 --as-of 2026-1
 ```
   Short-term realized                     $ (25,396)
   Long-term realized                             $ 0
-  Loss applied against ordinary income       $ (296)   (limited)
+  Loss applied against ordinary income       $ (296)
 
   Tax effect:
                                   Before       After           Δ
@@ -282,11 +282,11 @@ $ ouch harvest simulate --sell L-0217 --sell L-0431 --sell L-0388 --as-of 2026-1
 
 $25,396 of short-term losses against $22,000 of short-term gains and $3,100 of
 long-term gains leaves $296 with nowhere to go, so it offsets ordinary income.
-The `(limited)` marker names the line: this is the ordinary-offset bucket, which
-statute caps at $3,000 a year ($1,500 filing separately). It is printed whenever
-any loss reaches ordinary income, not only when the cap binds — here $296 is
-comfortably under it. Anything beyond the cap carries forward with its character
-preserved, and `ouch` reports the carryforward when one exists.
+That line is the ordinary-offset bucket, which statute caps at $3,000 a year
+($1,500 filing separately). $296 is comfortably under the cap, so the line is
+unmarked: the whole loss is absorbed this year. When the cap does bind, the
+line says `(capped at $ 3,000)` and a carryforward line follows, with each
+loss's character preserved.
 
 That $296 saved tax at Sam's ordinary marginal rate, not at a capital rate. Push
 further and the marginal value of each extra dollar of harvested loss collapses

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -152,3 +154,89 @@ def test_import_unrecognized_form(home, tmp_path):
     pdf = _make_pdf(tmp_path / "junk.pdf", ["A grocery list", "milk"])
     r = run_cli(home, "import", "pdf", "--yes", str(pdf))
     assert "not a recognized tax form" in r.stdout
+
+
+CO_PROFILE = """\
+schema_version = 2
+tax_year = 2025
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "CO"
+
+[income.wages]
+taxpayer_w2 = 310000
+"""
+
+
+def test_relocate_state_template_reports_real_difference(home):
+    """Issue #6 reproduction: CO → TX via the template must show Colorado's
+    whole income tax as the Δ, matching `estimate --state TX`."""
+    profiles = Path(home["XDG_CONFIG_HOME"]) / "ouch" / "profiles"
+    (profiles / "default.toml").write_text(CO_PROFILE)
+    assert run_cli(home, "scenario", "new", "tx-move",
+                   "--template", "relocate-state").returncode == 0
+
+    def total(*args):
+        r = run_cli(home, "--format", "json", "estimate", *args)
+        assert r.returncode == 0, r.stderr
+        return Decimal(json.loads(r.stdout)["result"]
+                       ["total_tax_all_jurisdictions"])
+
+    expected = total("--state", "TX") - total()
+    assert expected < 0
+    r = run_cli(home, "scenario", "compare", "baseline", "tx-move")
+    assert r.returncode == 0, r.stderr
+    delta_line = next(l for l in r.stdout.splitlines() if "Δ tax" in l)
+    shown_delta = -Decimal(re.search(r"\(([\d,]+)\)", delta_line)
+                           .group(1).replace(",", ""))
+    assert abs(shown_delta - expected) <= 1, delta_line
+
+    shown = run_cli(home, "scenario", "show", "tx-move")
+    assert "cost of living are outside ouch's scope)" in shown.stdout
+
+
+def test_import_output_requires_yes(home, tmp_path):
+    """Issue #13: non-interactive import is captured by --output; the
+    interactive review refuses it rather than prompting blind."""
+    pdf = _make_pdf(tmp_path / "w2.pdf", [
+        "Form W-2 Wage and Tax Statement", "OMB No. 1545-0008",
+        "1 Wages, tips, other compensation 142,000.00",
+        "2 Federal income tax withheld 21,400.00",
+        "3 Social security wages 142,000.00"])
+    out = tmp_path / "import.log"
+    r = run_cli(home, "--output", str(out), "import", "pdf", str(pdf))
+    assert r.returncode == 2 and "--yes" in r.stderr
+    assert not out.exists()
+    r = run_cli(home, "--output", str(out), "import", "pdf", "--yes",
+                "--owner", "taxpayer", str(pdf))
+    assert r.returncode == 0, r.stderr
+    assert "Provenance recorded" in out.read_text()
+
+
+TAGGED = """\
+name = "tagged"
+base = "default"
+description = "bunch charitable [2 years]"
+tags = ["retirement", "timing"]
+
+[patch]
+"adjustments.hsa" = 1000
+"""
+
+
+def test_scenario_tags_and_bracketed_descriptions_render(home):
+    """Issue #14: Rich must not swallow '[retirement, timing]' or a
+    bracketed description as console markup."""
+    d = Path(home["XDG_CONFIG_HOME"]) / "ouch" / "scenarios"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "tagged.toml").write_text(TAGGED)
+
+    r = run_cli(home, "scenario", "list")
+    assert r.returncode == 0, r.stderr
+    assert "bunch charitable [2 years]  [retirement, timing]" in r.stdout
+
+    r = run_cli(home, "scenario", "show", "tagged")
+    assert r.returncode == 0, r.stderr
+    assert "bunch charitable [2 years]" in r.stdout
+    assert "tags: retirement, timing" in r.stdout

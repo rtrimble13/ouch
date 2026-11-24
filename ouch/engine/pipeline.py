@@ -123,9 +123,18 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     oth = inp.income.other
 
     wages = Money(w.taxpayer_w2) + Money(w.spouse_w2)
-    ss_wages = Money(w.taxpayer_ss_wages) + Money(w.spouse_ss_wages)
-    if ss_wages == ZERO:
-        ss_wages = wages  # box 3 defaults to box 1 when not supplied
+    # The Social Security wage base is per person, so SE tax is coordinated
+    # against the business owner's own box 3 only — never the household's.
+    # Each person's box 3 defaults to their own box 1 when not supplied.
+    taxpayer_ss_wages = Money(w.taxpayer_ss_wages or w.taxpayer_w2)
+    spouse_ss_wages = Money(w.spouse_ss_wages or w.spouse_w2)
+    owner_ss_wages = (spouse_ss_wages if biz.owner == "spouse"
+                      else taxpayer_ss_wages)
+    # Medicare wages (box 5) are uncapped — never substitute capped box 3.
+    # Each person's box 5 defaults to their own box 1 when not supplied.
+    medicare_wages = (
+        Money(w.taxpayer_medicare_wages or w.taxpayer_w2)
+        + Money(w.spouse_medicare_wages or w.spouse_w2))
     se_net = Money(biz.schedule_c_net)
 
     netting = net_capital(
@@ -158,10 +167,11 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
             "(character preserved)")
 
     # 2. Self-employment tax → SE deduction ----------------------------------
-    se = setax.self_employment_tax(se_net, ss_wages, fed)
+    se = setax.self_employment_tax(se_net, owner_ss_wages, fed)
     tb.add("fed.setax", "Self-employment tax", se.se_tax, jurisdiction="federal",
            rule="92.35% of SE net income; SS portion limited to the wage base "
-                "remaining after W-2 social security wages",
+                f"remaining after the {biz.owner}'s own W-2 social security "
+                "wages (the wage base is per person)",
            form_ref="Schedule SE", authority="IRC §1401",
            inputs=(f"{data_ref}",))
 
@@ -190,8 +200,18 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         + Money(oth.rental_net) + Money(oth.k1_ordinary)
         + Money(oth.unemployment) + Money(oth.other_income)
         + netting.ordinary_component)
-    income_ex_ss = (wages + maxm(se_net, ZERO) + ordinary_unearned_ex_ss
+    # Schedule C flows to Schedule 1 line 3 unfloored: a business loss
+    # reduces total income. (SE tax, SE health and earned income floor it
+    # separately, as the statute does.)
+    income_ex_ss = (wages + se_net + ordinary_unearned_ex_ss
                     + pref_income + netting.unrecap_1250 + netting.collectibles)
+    se_loss_warnings: tuple[str, ...] = ()
+    if se_net < ZERO:
+        se_loss_warnings = (
+            f"Schedule C loss of ${(-se_net).round_dollar().amount:,.0f} "
+            "reduces income in full — at-risk, passive-activity, hobby-loss "
+            "and excess-business-loss (§461(l)) limits are not modeled",)
+        warnings.extend(se_loss_warnings)
     agi_ex_ss = income_ex_ss - adjustments_total
     taxable_ss = _taxable_social_security(
         agi_ex_ss, Money(inv.tax_exempt_interest),
@@ -210,7 +230,9 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     tb.add("fed.income.total", "Total income", total_income,
            jurisdiction="federal", rule="sum of all income included in gross "
            "income, by rate group", form_ref="1040 line 9", authority="IRC §61",
-           inputs=("fed.income.wages", "fed.income.capital"))
+           inputs=("fed.income.wages", "fed.income.capital"),
+           fidelity=Fidelity.APPROXIMATE if se_loss_warnings else Fidelity.EXACT,
+           warnings=se_loss_warnings)
     tb.add("fed.agi", "Adjusted gross income", agi, jurisdiction="federal",
            rule="total income less above-the-line adjustments",
            form_ref="1040 line 11", authority="IRC §62",
@@ -317,7 +339,7 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                         "could trigger it")
 
     # 11. Additional Medicare tax; NIIT --------------------------------------
-    addl_med = setax.additional_medicare(ss_wages, se.se_base, status, fed)
+    addl_med = setax.additional_medicare(medicare_wages, se.se_base, status, fed)
     if addl_med > ZERO:
         tb.add("fed.medicare.additional", "Additional Medicare tax", addl_med,
                jurisdiction="federal",
@@ -590,14 +612,20 @@ def run(inp: TaxInput, data: ResolvedData, *,
     marginal_combined = Decimal(0)
     if compute_marginals:
         step = Money(1000)
+        w_in = inp.income.wages
+
+        def _bump(explicit: Decimal) -> Decimal:
+            # An explicit box-3/box-5 figure moves with box 1; an absent one
+            # stays absent and keeps defaulting to box 1.
+            return explicit + 1000 if explicit > 0 else explicit
+
         bumped = inp.model_copy(deep=True, update={
             "income": inp.income.model_copy(update={
-                "wages": inp.income.wages.model_copy(update={
-                    "taxpayer_w2": inp.income.wages.taxpayer_w2 + 1000,
-                    "taxpayer_ss_wages":
-                        (inp.income.wages.taxpayer_ss_wages + 1000)
-                        if inp.income.wages.taxpayer_ss_wages > 0
-                        else inp.income.wages.taxpayer_ss_wages,
+                "wages": w_in.model_copy(update={
+                    "taxpayer_w2": w_in.taxpayer_w2 + 1000,
+                    "taxpayer_ss_wages": _bump(w_in.taxpayer_ss_wages),
+                    "taxpayer_medicare_wages":
+                        _bump(w_in.taxpayer_medicare_wages),
                 })})})
         bumped_result = run(bumped, data, compute_marginals=False)
         marginal_fed = ((bumped_result.federal_total_tax - fp.federal_total)

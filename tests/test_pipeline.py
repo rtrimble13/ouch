@@ -196,3 +196,151 @@ def test_amt_triggers_on_huge_salt(data_ny_nyc):
     inp = make_input(income={"wages": {"taxpayer_w2": "500000"}})
     r = pipeline.run(inp, data_ny_nyc, compute_marginals=False)
     assert r.amt_additional >= ZERO
+
+
+# --- Issue #2: Additional Medicare uses uncapped Medicare wages -------------
+
+
+def test_additional_medicare_ignores_capped_box3(data_federal_only):
+    """Single, $300,000 box 1 with a real (capped) box 3 of $176,100.
+    Form 8959: (300,000 − 200,000) × 0.9% = $900. Box 3 must not be the base."""
+    capped = make_input(income={"wages": {"taxpayer_w2": "300000",
+                                          "taxpayer_ss_wages": "176100"}})
+    absent = make_input(income={"wages": {"taxpayer_w2": "300000"}})
+    r_capped = pipeline.run(capped, data_federal_only, compute_marginals=False)
+    r_absent = pipeline.run(absent, data_federal_only, compute_marginals=False)
+    assert r_capped.additional_medicare.round_cent() == Money("900.00")
+    assert r_absent.additional_medicare.round_cent() == Money("900.00")
+
+
+def test_additional_medicare_uses_box5_when_supplied(data_federal_only):
+    """Box 5 exceeds box 1 by the $23,500 401(k) deferral:
+    (323,500 − 200,000) × 0.9% = $1,111.50."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "300000",
+                                       "taxpayer_ss_wages": "176100",
+                                       "taxpayer_medicare_wages": "323500"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.additional_medicare.round_cent() == Money("1111.50")
+
+
+def test_additional_medicare_box5_defaults_per_person(data_federal_only):
+    """MFJ: taxpayer supplies box 5 = 223,500 (box 1 = 200,000); spouse
+    supplies only box 1 = 100,000, which stands in for their box 5.
+    (223,500 + 100,000 − 250,000) × 0.9% = $661.50."""
+    inp = make_input(
+        taxpayer={"filing_status": "married_filing_jointly", "state": ""},
+        income={"wages": {"taxpayer_w2": "200000",
+                          "taxpayer_medicare_wages": "223500",
+                          "spouse_w2": "100000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.additional_medicare.round_cent() == Money("661.50")
+
+
+def test_marginal_rate_includes_additional_medicare_with_box5(data_federal_only):
+    """The numeric marginal bump must move an explicit box 5 with box 1, or
+    the 0.9% Additional Medicare tax vanishes from the marginal rate."""
+    explicit = make_input(income={"wages": {"taxpayer_w2": "300000",
+                                            "taxpayer_medicare_wages": "300000"}})
+    implicit = make_input(income={"wages": {"taxpayer_w2": "300000"}})
+    r_explicit = pipeline.run(explicit, data_federal_only)
+    r_implicit = pipeline.run(implicit, data_federal_only)
+    assert r_explicit.marginal_rate_federal == r_implicit.marginal_rate_federal
+
+
+# --- Issue #3: Schedule C losses reduce AGI ---------------------------------
+
+
+def test_schedule_c_loss_reduces_agi(data_federal_only):
+    """Single, wages 100,000, Schedule C −20,000 (Schedule 1 line 3).
+    total income = AGI = 80,000 ; taxable = 80,000 − 15,000 = 65,000
+    10%×11,925 = 1,192.50 ; 12%×36,550 = 4,386.00 ; 22%×16,525 = 3,635.50
+    total = 9,214.00 — and no SE tax on a loss."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
+                             "business": {"schedule_c_net": "-20000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.total_income == Money(80_000)
+    assert r.agi == Money(80_000)
+    assert r.taxable_income == Money(65_000)
+    assert r.se_tax == ZERO
+    assert r.federal_total_tax.round_cent() == Money("9214.00")
+
+
+def test_schedule_c_loss_is_disclosed(data_federal_only):
+    """The loss-limitation rules are out of scope — that must be loud."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
+                             "business": {"schedule_c_net": "-20000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert any("Schedule C loss" in w and "not modeled" in w
+               for w in r.warnings)
+    total = r.trace.get("fed.income.total")
+    assert str(total.fidelity) == "approximate"
+    assert str(r.fidelity) == "approximate"
+
+
+def test_schedule_c_profit_unchanged_and_exact(data_federal_only):
+    """No disclosure noise when there is no loss."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
+                             "business": {"schedule_c_net": "20000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.total_income == Money(120_000)
+    assert not any("Schedule C loss" in w for w in r.warnings)
+    assert str(r.trace.get("fed.income.total").fidelity) == "exact"
+
+
+# --- SS wage base is per person: SE tax coordinates against the owner -------
+# 2025 wage base 176,100. Schedule C 50,000 → SE base 46,175.
+#   SS portion  12.4% × 46,175 = 5,725.70
+#   Medicare     2.9% × 46,175 = 1,339.08 (1,339.075)
+#   full SE tax                = 7,064.78 ; Medicare only = 1,339.08
+
+MFJ = {"filing_status": "married_filing_jointly", "state": ""}
+
+
+def _se_tax(data, wages: dict, owner: str | None = None) -> Money:
+    business = {"schedule_c_net": "50000"}
+    if owner is not None:
+        business["owner"] = owner
+    inp = make_input(taxpayer=MFJ,
+                     income={"wages": wages, "business": business})
+    return pipeline.run(inp, data, compute_marginals=False).se_tax.round_cent()
+
+
+def test_spouse_w2_does_not_consume_owners_wage_base(data_federal_only):
+    """The taxpayer's business owes full SE tax: the spouse's $180,000 W-2
+    exhausts only the spouse's own wage base."""
+    assert _se_tax(data_federal_only, {"spouse_w2": "180000"}) == Money("7064.78")
+
+
+def test_spouse_owned_business_coordinates_with_spouse_w2(data_federal_only):
+    """Same household, business owned by the spouse whose W-2 is over the
+    wage base: Medicare portion only."""
+    assert _se_tax(data_federal_only, {"spouse_w2": "180000"},
+                   owner="spouse") == Money("1339.08")
+
+
+def test_box3_defaults_per_person(data_federal_only):
+    """Taxpayer supplies a capped box 3 of 176,100; the spouse supplies only
+    box 1 = 100,000, which stands in for their box 3 (base left 76,100 ≥
+    46,175). Previously the household sum (176,100) was used for both."""
+    wages = {"taxpayer_w2": "200000", "taxpayer_ss_wages": "176100",
+             "spouse_w2": "100000"}
+    assert _se_tax(data_federal_only, wages, owner="spouse") == Money("7064.78")
+    assert _se_tax(data_federal_only, wages, owner="taxpayer") == Money("1339.08")
+
+
+def test_partial_wage_base_remaining_for_owner(data_federal_only):
+    """Owner's W-2 150,000 leaves 26,100 of base: 12.4% × 26,100 = 3,236.40,
+    + 1,339.075 Medicare = 4,575.475 → 4,575.48. The spouse's wages are
+    irrelevant to it."""
+    wages = {"taxpayer_w2": "150000", "spouse_w2": "150000"}
+    assert _se_tax(data_federal_only, wages) == Money("4575.48")
+
+
+def test_spouse_owner_requires_joint_return():
+    spouse_biz = {"business": {"owner": "spouse", "schedule_c_net": "1000"}}
+    make_input(taxpayer=MFJ, income=spouse_biz)          # accepted jointly
+    for status in ("single", "married_filing_separately", "head_of_household"):
+        with pytest.raises(ValueError, match="owner is 'spouse'.*"
+                                             "married_filing_jointly"):
+            make_input(taxpayer={"filing_status": status, "state": ""},
+                       income=spouse_biz)

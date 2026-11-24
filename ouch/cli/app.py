@@ -18,7 +18,7 @@ import ouch
 from ouch.cli import (cmd_agent, cmd_config, cmd_data, cmd_estimate,
                       cmd_explain, cmd_harvest, cmd_import, cmd_init,
                       cmd_profile, cmd_scenario, cmd_withhold)
-from ouch.cli.common import build_runtime
+from ouch.cli.common import Runtime, build_runtime
 from ouch.errors import OuchError
 
 app = typer.Typer(
@@ -69,10 +69,25 @@ def root(
     version: bool = typer.Option(False, "--version", callback=_version_callback,
                                  is_eager=True),
 ) -> None:
-    ctx.obj = build_runtime(profile, year, config, fmt, verbose, quiet,
-                            no_color, dry_run, explain)
-    ctx.obj.output_path = output  # type: ignore[attr-defined]
-    ctx.obj.no_ai = no_ai  # type: ignore[attr-defined]
+    global _active_runtime
+    ctx.obj = _active_runtime = build_runtime(
+        profile, year, config, fmt, verbose, quiet, no_color, dry_run,
+        explain, output=output, no_ai=no_ai)
+
+
+# The runtime of the command being run, so `main()` can write the --output
+# buffer once the command has succeeded.
+_active_runtime: Optional[Runtime] = None
+
+
+def _flush_output() -> None:
+    if _active_runtime is None:
+        return
+    try:
+        _active_runtime.flush_output()
+    except OSError as e:
+        typer.secho(f"✖ cannot write --output file: {e}", fg="red", err=True)
+        sys.exit(1)
 
 
 app.command("init")(cmd_init.init)
@@ -100,12 +115,15 @@ app.add_typer(cmd_config.app, name="config", help="show | path")
 def main() -> None:
     try:
         app(standalone_mode=False)
+        _flush_output()
     except OuchError as e:
         typer.secho(f"✖ {e.message}", fg="red", err=True)
         if e.hint:
             typer.secho(f"  → {e.hint}", fg="yellow", err=True)
         sys.exit(e.exit_code)
     except typer.Exit as e:
+        if e.exit_code == 0:
+            _flush_output()
         sys.exit(e.exit_code)
     except typer.Abort:
         sys.exit(1)

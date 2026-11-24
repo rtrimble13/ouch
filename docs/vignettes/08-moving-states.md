@@ -276,10 +276,11 @@ ouch estimate --federal-only      # strip state and local entirely
 
 $103,597 of $129,342 — about 80%.
 
-> These flags reload the tax data for the jurisdiction you name, which is why
-> **relocation must be modelled with `--state`, not with a scenario patch.**
-> A scenario that patches `taxpayer.state` changes the label but keeps the
-> original state's data. Vignette 5 §7 has the demonstration.
+> These flags reload the tax data for the jurisdiction you name. Scenario
+> patches do the same: a scenario that changes `taxpayer.state`,
+> `taxpayer.locality`, `taxpayer.former_state`, or `taxpayer.residency_months`
+> is computed with the data its patched profile needs, so a relocation can be
+> kept as a scenario and compared with other changes (vignette 5 §7).
 
 ---
 
@@ -373,8 +374,8 @@ there.
 - A prior AMT payment is a recoverable credit, limited each year by the
   headroom between regular tax and tentative minimum tax — $6,934 of $31,400
   this year.
-- `--state`, `--locality`, and `--federal-only` reload data; scenario patches
-  do not.
+- `--state`, `--locality`, and `--federal-only` reload data, and so does a
+  scenario patch that changes the jurisdiction.
 
 ## Try it yourself
 

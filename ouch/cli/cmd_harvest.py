@@ -33,9 +33,9 @@ def _as_of(value: Optional[str]) -> _dt.date:
 
 
 def _context(rt: Runtime):
-    from ouch.cli.common import _derive_periods_remaining
+    from ouch.cli.common import prepare_raw
     raw, _ = profile_mod.load_profile_raw(rt.profile_name)
-    _derive_periods_remaining(raw, _dt.date.today(), rt.tax_year)
+    prepare_raw(rt, raw)
     build = lambda r: profile_mod.build_tax_input(r, rt.tax_year)  # noqa: E731
     data = load_data(build(raw))
     return raw, build, data
@@ -155,8 +155,10 @@ def simulate(ctx: typer.Context,
     console.print(f"  Long-term realized                    "
                   f"{sim.netting.lt_realized.fmt():>12}")
     if sim.netting.ordinary_offset < ZERO:
+        note = (f"   (capped at {sim.netting.offset_limit.fmt()})"
+                if sim.netting.offset_capped else "")
         console.print(f"  Loss applied against ordinary income  "
-                      f"{sim.netting.ordinary_offset.fmt():>12}   (limited)")
+                      f"{sim.netting.ordinary_offset.fmt():>12}{note}")
     if sim.netting.carryforward_st + sim.netting.carryforward_lt > ZERO:
         console.print(f"  Carryforward to {sim.before.year + 1}                 "
                       f"    ST {sim.netting.carryforward_st.fmt()} · "

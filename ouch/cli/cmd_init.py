@@ -13,6 +13,8 @@ _STATUSES = list(FilingStatus)
 
 def init(ctx: typer.Context) -> None:
     rt: Runtime = ctx.obj
+    rt.require_terminal("`init`, which is interactive",
+                        hint="its result is the profile file it writes")
     console = rt.console()
     console.print("Welcome to ouch. Let's set up your tax profile.\n")
 
@@ -71,7 +73,7 @@ def init(ctx: typer.Context) -> None:
 
     path = profile_mod.resolve_profile_path(rt.profile_name)
     if rt.dry_run:
-        print(content)
+        rt.echo(content)
         return
     profile_mod.write_profile(path, content)
     console.print(f"\n✔ Profile written to {path}")

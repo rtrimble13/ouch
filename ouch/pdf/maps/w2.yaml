@@ -22,6 +22,12 @@ fields:
     target: income.wages.{owner}_ss_wages
     type: money
     aggregate: sum
+  - box: "5"
+    labels: ["Medicare wages and tips"]
+    target: income.wages.{owner}_medicare_wages
+    type: money
+    aggregate: sum
+    required: false
   - box: "17"
     labels: ["State income tax"]
     target: payments.withholding.state_ytd

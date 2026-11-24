@@ -1,8 +1,8 @@
 # Vignette 2 — The April surprise, fixed in July
 
 **Ade and Chidi Okonkwo, married filing jointly, Brooklyn.** Two W-2 incomes
-($185k and $96k), one child in kindergarten, a $28k consulting sideline, and a
-brokerage account. Last April they owed money they hadn't budgeted for. It is
+($185k and $96k), one child in kindergarten, Ade's $28k consulting sideline,
+and a brokerage account. Last April they owed money they hadn't budgeted for. It is
 now July and they would like not to repeat that.
 
 **Commands introduced:** `ouch withhold check`, `ouch withhold solve`,
@@ -34,10 +34,11 @@ relationship = "child"
 [income.wages]
 taxpayer_w2       = 185000
 spouse_w2         = 96000
-taxpayer_ss_wages = 185000
+taxpayer_ss_wages = 176100
 spouse_ss_wages   = 96000
 
 [income.business]
+owner          = "taxpayer"
 schedule_c_net = 28000
 
 [income.investment]
@@ -61,9 +62,11 @@ total_tax = 58900
 
 Three details that carry weight later:
 
-- **`taxpayer_ss_wages` / `spouse_ss_wages`** are W-2 box 3. `ouch` uses them
-  to work out how much Social Security wage base is left for the consulting
-  income.
+- **`taxpayer_ss_wages` / `spouse_ss_wages`** are W-2 box 3, which an
+  employer caps at the Social Security wage base ($176,100 in this data) —
+  so Ade's box 3 is lower than box 1. **`owner`** says whose business the
+  consulting is. `ouch` uses the owner's box 3 to work out how much of *that
+  person's* wage base is left for the consulting income.
 - **`periods_remaining = 11`** pins the calendar. Leave it at `0` and `ouch`
   derives it from today's date and the pay-period count.
 - **`[payments.prior_year]`** is what makes the prior-year safe-harbor test
@@ -127,16 +130,21 @@ $ ouch explain fed.setax
 ```
 fed.setax · $ 750 · Self-employment tax
 ├── Authority: IRC §1401 · Schedule SE
-├── Rule: 92.35% of SE net income; SS portion limited to the wage base
-│   remaining after W-2 social security wages
+├── Rule: 92.35% of SE net income; SS portion limited to the wage base remaining
+│   after the taxpayer's own W-2 social security wages (the wage base is per
+│   person)
 └── taxdata.federal.2026 (data reference)
 ```
 
-Their combined W-2 Social Security wages of $281,000 have already exhausted the
-wage base, so the consulting income owes **Medicare only** — $28,000 × 92.35% ×
-2.9% ≈ $750. This is the coordination that trips people up in both directions:
-it is a pleasant surprise here, and an unpleasant one for a freelancer with no
-W-2 (vignette 4, where the full 15.3% applies).
+Ade's W-2 has already used Ade's entire wage base ($176,100 in box 3), so the
+consulting income owes **Medicare only** — $28,000 × 92.35% × 2.9% ≈ $750.
+
+The wage base is **per person**, not per household. Chidi's wages don't count
+against Ade's base. If the consulting were Chidi's (`owner = "spouse"`),
+Chidi's $96,000 would leave $80,100 of base, the full 15.3% would apply, and
+SE tax would be **$3,956**. This coordination trips people up in both
+directions: a pleasant surprise here, an unpleasant one for a freelancer with
+no W-2 (vignette 4, where the full 15.3% applies).
 
 **Additional Medicare tax: $512.**
 
@@ -379,6 +387,7 @@ ouch withhold check
 ouch withhold solve --target refund:1000
 ouch withhold w4
 ouch estimate --set income.business.schedule_c_net=0     # what did the sideline cost?
+ouch estimate --set income.business.owner=spouse         # if the consulting were Chidi's
 ouch explain fed.niit
 ```
 
