@@ -100,7 +100,7 @@ ouch data validate         # schema-check shipped tax data
 ```bash
 ouch init                          # build a profile interactively
 ouch estimate                      # one-screen summary of your burden
-ouch estimate --explain            # append the computation trace
+ouch --explain estimate            # append the computation trace
 ouch explain fed.tax.preferential  # walk the derivation of any line
 ouch withhold check                # are you on track? safe-harbor status
 ouch withhold solve --target zero --w4

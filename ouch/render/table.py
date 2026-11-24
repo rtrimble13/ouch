@@ -100,4 +100,4 @@ def render_summary(result: TaxResult, status: FilingStatus, state: str,
              f" · fidelity: {result.fidelity}")
     console.print(Panel(Text("\n".join(lines)), title=title, expand=False))
     console.print(f"  {DISCLAIMER.splitlines()[0]} "
-                  "Run `ouch estimate --explain` for detail.", style="dim")
+                  "Run `ouch --explain estimate` for detail.", style="dim")

@@ -150,3 +150,32 @@ def test_data_list():
 def test_profile_validate(profile_path):
     r = run_cli("profile", "validate", profile=profile_path)
     assert r.returncode == 0
+
+
+def _suggested_commands(text: str) -> list[list[str]]:
+    import re
+    return [" ".join(m.split()).split()[1:]          # drop the leading "ouch"
+            for m in re.findall(r"`(ouch [^`]+)`", text, re.S)]
+
+
+def test_estimate_footer_suggestion_parses(profile_path):
+    """Issue #9: the footer under every estimate must suggest a command
+    that actually runs (global options precede the subcommand)."""
+    r = run_cli("estimate", profile=profile_path)
+    suggestions = _suggested_commands(r.stdout)
+    assert suggestions, r.stdout
+    for args in suggestions:
+        follow = run_cli(*args, profile=profile_path)
+        assert follow.returncode == 0, (args, follow.stderr)
+
+
+def test_guardrail_suggestions_parse(profile_path):
+    from decimal import Decimal
+    from ouch.agent import guardrails
+    _, warnings = guardrails.annotate("Your tax is $12,345.", {Decimal(1)})
+    text = guardrails.REFUSAL_TEXT + " " + " ".join(warnings)
+    suggestions = _suggested_commands(text)
+    assert len(suggestions) == 2
+    for args in suggestions:
+        follow = run_cli(*args, profile=profile_path)
+        assert follow.returncode == 0, (args, follow.stderr)
