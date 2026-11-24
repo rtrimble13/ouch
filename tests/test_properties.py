@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import example, given, settings, strategies as st
 
 from ouch.engine import pipeline
 from ouch.model.money import Money, ZERO
@@ -40,6 +40,10 @@ def test_monotonic_in_income(data_federal_only, wages, bump):
 
 @settings(max_examples=40, deadline=None)
 @given(wages=amounts, ltcg=gains, stcg=gains, qd=st.integers(0, 50_000))
+# A tiny AGI next to refundable EITC: wages 359 + QD 876 − capital loss 1,232
+# → AGI 3, EITC 7.65% × 359 = 27.46, effective rate ≈ −915%. Correct tax,
+# so the rate has no fixed lower bound; the refundable floor covers it.
+@example(wages=359, ltcg=-1232, stcg=0, qd=876)
 def test_marginal_rate_bounded_and_invariants(data_federal_only, wages, ltcg,
                                               stcg, qd):
     r = _run(data_federal_only, wages=wages, ltcg=ltcg, stcg=stcg, qd=qd)
@@ -48,7 +52,8 @@ def test_marginal_rate_bounded_and_invariants(data_federal_only, wages, ltcg,
     # Refundable credits (EITC) can drive the total below zero, but never
     # below the refundable amount itself.
     assert r.federal_total_tax >= -r.credits_refundable
-    assert Decimal(-1) <= r.effective_rate_agi <= Decimal(1)
+    # Tax never exceeds AGI.
+    assert r.effective_rate_agi <= Decimal(1)
 
 
 @settings(max_examples=25, deadline=None)
