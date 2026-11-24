@@ -182,3 +182,30 @@ def test_missing_pdf_support_message(monkeypatch):
     with pytest.raises(PDFError) as e:
         pdf_pkg.require_pdf_support()
     assert 'ouch[pdf]' in (e.value.hint or "")
+
+
+def test_extract_w2_box5_medicare_wages(maps, tmp_path):
+    """Box 5 (uncapped Medicare wages) is captured for Form 8959; box 3 stays
+    the capped SS figure."""
+    pdf = make_pdf(tmp_path / "w2-high.pdf", [
+        "Form W-2 Wage and Tax Statement 2025",
+        "OMB No. 1545-0008",
+        "1 Wages, tips, other compensation 300,000.00",
+        "2 Federal income tax withheld 62,000.00",
+        "3 Social security wages 176,100.00",
+        "5 Medicare wages and tips 323,500.00",
+    ])
+    text, acro = extract_mod.read_pdf_text(pdf)
+    form = next(m for m in maps if m.id == "w2")
+    fields = {f.box: f for f in extract_mod.extract_form(text, acro, form)}
+    assert fields["3"].value == Decimal("176100.00")
+    assert fields["5"].value == Decimal("323500.00")
+    assert fields["5"].target == "income.wages.{owner}_medicare_wages"
+
+
+def test_extract_w2_without_box5_still_valid(maps, w2_pdf):
+    """Box 5 is optional — a W-2 without it does not produce a missing field."""
+    text, acro = extract_mod.read_pdf_text(w2_pdf)
+    form = next(m for m in maps if m.id == "w2")
+    boxes = {f.box for f in extract_mod.extract_form(text, acro, form)}
+    assert "5" not in boxes

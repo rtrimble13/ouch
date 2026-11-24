@@ -807,6 +807,8 @@ Repeat the table for each dependent.
 | `spouse_w2` | Requires `married_filing_jointly` |
 | `taxpayer_ss_wages` | W-2 box 3 — used to coordinate the SE Social Security wage base |
 | `spouse_ss_wages` | |
+| `taxpayer_medicare_wages` | W-2 box 5 — the uncapped Additional Medicare (Form 8959) base. Defaults to box 1 when absent; box 5 usually exceeds box 1 by 401(k)/403(b) deferrals, so supply it if you are near the threshold |
+| `spouse_medicare_wages` | |
 
 ### `[income.investment]`
 

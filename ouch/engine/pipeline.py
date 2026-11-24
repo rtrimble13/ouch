@@ -126,6 +126,11 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     ss_wages = Money(w.taxpayer_ss_wages) + Money(w.spouse_ss_wages)
     if ss_wages == ZERO:
         ss_wages = wages  # box 3 defaults to box 1 when not supplied
+    # Medicare wages (box 5) are uncapped — never substitute capped box 3.
+    # Each person's box 5 defaults to their own box 1 when not supplied.
+    medicare_wages = (
+        Money(w.taxpayer_medicare_wages or w.taxpayer_w2)
+        + Money(w.spouse_medicare_wages or w.spouse_w2))
     se_net = Money(biz.schedule_c_net)
 
     netting = net_capital(
@@ -317,7 +322,7 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                         "could trigger it")
 
     # 11. Additional Medicare tax; NIIT --------------------------------------
-    addl_med = setax.additional_medicare(ss_wages, se.se_base, status, fed)
+    addl_med = setax.additional_medicare(medicare_wages, se.se_base, status, fed)
     if addl_med > ZERO:
         tb.add("fed.medicare.additional", "Additional Medicare tax", addl_med,
                jurisdiction="federal",
@@ -590,14 +595,20 @@ def run(inp: TaxInput, data: ResolvedData, *,
     marginal_combined = Decimal(0)
     if compute_marginals:
         step = Money(1000)
+        w_in = inp.income.wages
+
+        def _bump(explicit: Decimal) -> Decimal:
+            # An explicit box-3/box-5 figure moves with box 1; an absent one
+            # stays absent and keeps defaulting to box 1.
+            return explicit + 1000 if explicit > 0 else explicit
+
         bumped = inp.model_copy(deep=True, update={
             "income": inp.income.model_copy(update={
-                "wages": inp.income.wages.model_copy(update={
-                    "taxpayer_w2": inp.income.wages.taxpayer_w2 + 1000,
-                    "taxpayer_ss_wages":
-                        (inp.income.wages.taxpayer_ss_wages + 1000)
-                        if inp.income.wages.taxpayer_ss_wages > 0
-                        else inp.income.wages.taxpayer_ss_wages,
+                "wages": w_in.model_copy(update={
+                    "taxpayer_w2": w_in.taxpayer_w2 + 1000,
+                    "taxpayer_ss_wages": _bump(w_in.taxpayer_ss_wages),
+                    "taxpayer_medicare_wages":
+                        _bump(w_in.taxpayer_medicare_wages),
                 })})})
         bumped_result = run(bumped, data, compute_marginals=False)
         marginal_fed = ((bumped_result.federal_total_tax - fp.federal_total)

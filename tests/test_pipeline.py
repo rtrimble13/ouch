@@ -196,3 +196,52 @@ def test_amt_triggers_on_huge_salt(data_ny_nyc):
     inp = make_input(income={"wages": {"taxpayer_w2": "500000"}})
     r = pipeline.run(inp, data_ny_nyc, compute_marginals=False)
     assert r.amt_additional >= ZERO
+
+
+# --- Issue #2: Additional Medicare uses uncapped Medicare wages -------------
+
+
+def test_additional_medicare_ignores_capped_box3(data_federal_only):
+    """Single, $300,000 box 1 with a real (capped) box 3 of $176,100.
+    Form 8959: (300,000 − 200,000) × 0.9% = $900. Box 3 must not be the base."""
+    capped = make_input(income={"wages": {"taxpayer_w2": "300000",
+                                          "taxpayer_ss_wages": "176100"}})
+    absent = make_input(income={"wages": {"taxpayer_w2": "300000"}})
+    r_capped = pipeline.run(capped, data_federal_only, compute_marginals=False)
+    r_absent = pipeline.run(absent, data_federal_only, compute_marginals=False)
+    assert r_capped.additional_medicare.round_cent() == Money("900.00")
+    assert r_absent.additional_medicare.round_cent() == Money("900.00")
+
+
+def test_additional_medicare_uses_box5_when_supplied(data_federal_only):
+    """Box 5 exceeds box 1 by the $23,500 401(k) deferral:
+    (323,500 − 200,000) × 0.9% = $1,111.50."""
+    inp = make_input(income={"wages": {"taxpayer_w2": "300000",
+                                       "taxpayer_ss_wages": "176100",
+                                       "taxpayer_medicare_wages": "323500"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.additional_medicare.round_cent() == Money("1111.50")
+
+
+def test_additional_medicare_box5_defaults_per_person(data_federal_only):
+    """MFJ: taxpayer supplies box 5 = 223,500 (box 1 = 200,000); spouse
+    supplies only box 1 = 100,000, which stands in for their box 5.
+    (223,500 + 100,000 − 250,000) × 0.9% = $661.50."""
+    inp = make_input(
+        taxpayer={"filing_status": "married_filing_jointly", "state": ""},
+        income={"wages": {"taxpayer_w2": "200000",
+                          "taxpayer_medicare_wages": "223500",
+                          "spouse_w2": "100000"}})
+    r = pipeline.run(inp, data_federal_only, compute_marginals=False)
+    assert r.additional_medicare.round_cent() == Money("661.50")
+
+
+def test_marginal_rate_includes_additional_medicare_with_box5(data_federal_only):
+    """The numeric marginal bump must move an explicit box 5 with box 1, or
+    the 0.9% Additional Medicare tax vanishes from the marginal rate."""
+    explicit = make_input(income={"wages": {"taxpayer_w2": "300000",
+                                            "taxpayer_medicare_wages": "300000"}})
+    implicit = make_input(income={"wages": {"taxpayer_w2": "300000"}})
+    r_explicit = pipeline.run(explicit, data_federal_only)
+    r_implicit = pipeline.run(implicit, data_federal_only)
+    assert r_explicit.marginal_rate_federal == r_implicit.marginal_rate_federal

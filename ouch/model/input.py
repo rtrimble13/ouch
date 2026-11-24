@@ -56,6 +56,11 @@ class WagesIncome(_Frozen):
     spouse_w2: Decimal = NonNeg
     taxpayer_ss_wages: Decimal = NonNeg  # box 3, for SS wage-base coordination
     spouse_ss_wages: Decimal = NonNeg
+    # box 5, uncapped — the Additional Medicare (Form 8959) base. Defaults to
+    # box 1 per person when absent; box 5 usually exceeds box 1 by elective
+    # 401(k)/403(b) deferrals.
+    taxpayer_medicare_wages: Decimal = NonNeg
+    spouse_medicare_wages: Decimal = NonNeg
 
 
 class InvestmentIncome(_Frozen):
