@@ -179,3 +179,53 @@ def test_guardrail_suggestions_parse(profile_path):
     for args in suggestions:
         follow = run_cli(*args, profile=profile_path)
         assert follow.returncode == 0, (args, follow.stderr)
+
+
+WALK_PROFILE = """\
+schema_version = 2
+tax_year = 2025
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "NY"
+locality = "NYC"
+
+[income.wages]
+taxpayer_w2 = 185000
+spouse_w2 = 96000
+
+[payments.withholding]
+federal_ytd = 34800
+state_ytd = 11500
+local_ytd = 4200
+federal_per_period = 1450
+state_per_period = 500
+local_per_period = 200
+periods_remaining = 11
+
+[payments.estimated]
+q1_federal = 1000
+"""
+
+
+def test_withhold_check_walk_adds_up(tmp_path):
+    """Issue #10: withheld-to-date + projected withholding (+ estimates)
+    must equal projected total payments: 50,500 + 11 × 2,150 + 1,000."""
+    import re
+    p = tmp_path / "walk.toml"
+    p.write_text(WALK_PROFILE)
+    r = run_cli("withhold", "check", profile=p)
+    assert r.returncode == 0, r.stderr
+
+    def amount(label: str) -> int:
+        line = next(l for l in r.stdout.splitlines() if l.startswith(label))
+        return int(re.search(r"\$ ([\d,]+)", line).group(1).replace(",", ""))
+
+    ytd = amount("Withheld to date")
+    additional = amount("Projected additional withholding")
+    estimated = amount("Estimated payments")
+    total = amount("Projected total payments")
+    assert (ytd, additional, estimated) == (50_500, 23_650, 1_000)
+    assert ytd + additional + estimated == total
+    assert "(11 periods × $ 2,150)" in r.stdout
+    assert "per period: federal $ 1,450 · state $ 500 · local $ 200" in r.stdout
