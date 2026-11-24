@@ -123,9 +123,13 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     oth = inp.income.other
 
     wages = Money(w.taxpayer_w2) + Money(w.spouse_w2)
-    ss_wages = Money(w.taxpayer_ss_wages) + Money(w.spouse_ss_wages)
-    if ss_wages == ZERO:
-        ss_wages = wages  # box 3 defaults to box 1 when not supplied
+    # The Social Security wage base is per person, so SE tax is coordinated
+    # against the business owner's own box 3 only — never the household's.
+    # Each person's box 3 defaults to their own box 1 when not supplied.
+    taxpayer_ss_wages = Money(w.taxpayer_ss_wages or w.taxpayer_w2)
+    spouse_ss_wages = Money(w.spouse_ss_wages or w.spouse_w2)
+    owner_ss_wages = (spouse_ss_wages if biz.owner == "spouse"
+                      else taxpayer_ss_wages)
     # Medicare wages (box 5) are uncapped — never substitute capped box 3.
     # Each person's box 5 defaults to their own box 1 when not supplied.
     medicare_wages = (
@@ -163,10 +167,11 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
             "(character preserved)")
 
     # 2. Self-employment tax → SE deduction ----------------------------------
-    se = setax.self_employment_tax(se_net, ss_wages, fed)
+    se = setax.self_employment_tax(se_net, owner_ss_wages, fed)
     tb.add("fed.setax", "Self-employment tax", se.se_tax, jurisdiction="federal",
            rule="92.35% of SE net income; SS portion limited to the wage base "
-                "remaining after W-2 social security wages",
+                f"remaining after the {biz.owner}'s own W-2 social security "
+                "wages (the wage base is per person)",
            form_ref="Schedule SE", authority="IRC §1401",
            inputs=(f"{data_ref}",))
 

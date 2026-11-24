@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 from datetime import date
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -87,6 +87,9 @@ class InvestmentIncome(_Frozen):
 
 
 class BusinessIncome(_Frozen):
+    # Whose Schedule C / SE: the Social Security wage base is per person
+    # (IRC §1402(b)), so SE tax is coordinated against the owner's own W-2.
+    owner: Literal["taxpayer", "spouse"] = "taxpayer"
     schedule_c_net: Decimal = AnyAmt
     se_health_premiums: Decimal = NonNeg
     qbi_eligible_income: Decimal = AnyAmt
@@ -234,6 +237,14 @@ class TaxInput(_Frozen):
             raise ValueError(
                 "spouse W-2 wages present but filing status is not "
                 "married_filing_jointly"
+            )
+        if (self.income.business.owner == "spouse"
+                and self.taxpayer.filing_status
+                != FilingStatus.MARRIED_FILING_JOINTLY):
+            raise ValueError(
+                "income.business.owner is 'spouse' but filing status is not "
+                "married_filing_jointly — a separate or unmarried return "
+                "carries only its own filer's business"
             )
         inv = self.income.investment
         if inv.in_state_muni_interest > inv.tax_exempt_interest:

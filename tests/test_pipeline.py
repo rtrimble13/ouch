@@ -285,3 +285,62 @@ def test_schedule_c_profit_unchanged_and_exact(data_federal_only):
     assert r.total_income == Money(120_000)
     assert not any("Schedule C loss" in w for w in r.warnings)
     assert str(r.trace.get("fed.income.total").fidelity) == "exact"
+
+
+# --- SS wage base is per person: SE tax coordinates against the owner -------
+# 2025 wage base 176,100. Schedule C 50,000 → SE base 46,175.
+#   SS portion  12.4% × 46,175 = 5,725.70
+#   Medicare     2.9% × 46,175 = 1,339.08 (1,339.075)
+#   full SE tax                = 7,064.78 ; Medicare only = 1,339.08
+
+MFJ = {"filing_status": "married_filing_jointly", "state": ""}
+
+
+def _se_tax(data, wages: dict, owner: str | None = None) -> Money:
+    business = {"schedule_c_net": "50000"}
+    if owner is not None:
+        business["owner"] = owner
+    inp = make_input(taxpayer=MFJ,
+                     income={"wages": wages, "business": business})
+    return pipeline.run(inp, data, compute_marginals=False).se_tax.round_cent()
+
+
+def test_spouse_w2_does_not_consume_owners_wage_base(data_federal_only):
+    """The taxpayer's business owes full SE tax: the spouse's $180,000 W-2
+    exhausts only the spouse's own wage base."""
+    assert _se_tax(data_federal_only, {"spouse_w2": "180000"}) == Money("7064.78")
+
+
+def test_spouse_owned_business_coordinates_with_spouse_w2(data_federal_only):
+    """Same household, business owned by the spouse whose W-2 is over the
+    wage base: Medicare portion only."""
+    assert _se_tax(data_federal_only, {"spouse_w2": "180000"},
+                   owner="spouse") == Money("1339.08")
+
+
+def test_box3_defaults_per_person(data_federal_only):
+    """Taxpayer supplies a capped box 3 of 176,100; the spouse supplies only
+    box 1 = 100,000, which stands in for their box 3 (base left 76,100 ≥
+    46,175). Previously the household sum (176,100) was used for both."""
+    wages = {"taxpayer_w2": "200000", "taxpayer_ss_wages": "176100",
+             "spouse_w2": "100000"}
+    assert _se_tax(data_federal_only, wages, owner="spouse") == Money("7064.78")
+    assert _se_tax(data_federal_only, wages, owner="taxpayer") == Money("1339.08")
+
+
+def test_partial_wage_base_remaining_for_owner(data_federal_only):
+    """Owner's W-2 150,000 leaves 26,100 of base: 12.4% × 26,100 = 3,236.40,
+    + 1,339.075 Medicare = 4,575.475 → 4,575.48. The spouse's wages are
+    irrelevant to it."""
+    wages = {"taxpayer_w2": "150000", "spouse_w2": "150000"}
+    assert _se_tax(data_federal_only, wages) == Money("4575.48")
+
+
+def test_spouse_owner_requires_joint_return():
+    spouse_biz = {"business": {"owner": "spouse", "schedule_c_net": "1000"}}
+    make_input(taxpayer=MFJ, income=spouse_biz)          # accepted jointly
+    for status in ("single", "married_filing_separately", "head_of_household"):
+        with pytest.raises(ValueError, match="owner is 'spouse'.*"
+                                             "married_filing_jointly"):
+            make_input(taxpayer={"filing_status": status, "state": ""},
+                       income=spouse_biz)

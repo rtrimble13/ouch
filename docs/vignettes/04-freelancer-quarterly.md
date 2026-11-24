@@ -94,15 +94,16 @@ $ ouch explain fed.setax
 ```
 fed.setax · $ 18,368 · Self-employment tax
 ├── Authority: IRC §1401 · Schedule SE
-├── Rule: 92.35% of SE net income; SS portion limited to the wage base
-│   remaining after W-2 social security wages
+├── Rule: 92.35% of SE net income; SS portion limited to the wage base remaining
+│   after the taxpayer's own W-2 social security wages (the wage base is per
+│   person)
 ```
 
 $130,000 × 92.35% = $120,055 of SE net earnings, then 12.4% Social Security
 plus 2.9% Medicare on all of it. Compare vignette 2, where the Okonkwos' $28,000
-of consulting owed **$750** — their W-2 wages had already used up the Social
+of consulting owed **$750** — Ade's own W-2 had already used up Ade's Social
 Security wage base, so only the Medicare portion applied. Same statute, opposite
-outcomes, decided entirely by whether you have wages elsewhere.
+outcomes, decided entirely by whether the business owner has wages elsewhere.
 
 ### The two effective rates disagree, and both are right
 

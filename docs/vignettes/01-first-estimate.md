@@ -226,7 +226,7 @@ fed.income.capital · $ 3,400 · Net capital gain/(loss) in income
   statutory netting: ST vs ST, LT vs LT, cross-net, ordinary offset limited
 fed.setax · $ 0 · Self-employment tax
   92.35% of SE net income; SS portion limited to the wage base remaining after
-  W-2 social security wages
+  the taxpayer's own W-2 social security wages (the wage base is per person)
 fed.adjustments · $ 0 · Above-the-line adjustments
   ½ SE tax + SE health (limited to SE income) + IRA/HSA/retirement and other adjustments
 fed.income.total · $ 148,350 · Total income

@@ -864,7 +864,7 @@ Repeat the table for each dependent.
 |---|---|
 | `taxpayer_w2` | W-2 box 1 |
 | `spouse_w2` | Requires `married_filing_jointly` |
-| `taxpayer_ss_wages` | W-2 box 3 — used to coordinate the SE Social Security wage base |
+| `taxpayer_ss_wages` | W-2 box 3 (capped at the Social Security wage base). Defaults to box 1 when absent. Only the business owner's figure reduces the wage base left for SE tax — see `income.business.owner` |
 | `spouse_ss_wages` | |
 | `taxpayer_medicare_wages` | W-2 box 5 — the uncapped Additional Medicare (Form 8959) base. Defaults to box 1 when absent; box 5 usually exceeds box 1 by 401(k)/403(b) deferrals, so supply it if you are near the threshold |
 | `spouse_medicare_wages` | |
@@ -889,6 +889,7 @@ Repeat the table for each dependent.
 
 | Key | Notes |
 |---|---|
+| `owner` | `"taxpayer"` (default) or `"spouse"` — whose business it is. The Social Security wage base is per person, so SE tax is coordinated against the owner's own W-2 box 3 only; the other spouse's wages never use it up. `"spouse"` requires `married_filing_jointly` |
 | `schedule_c_net` | Net self-employment income. A loss (negative) reduces total income and AGI; at-risk, passive-activity, hobby-loss, and excess-business-loss limits are not modeled, and a warning says so |
 | `se_health_premiums` | Self-employed health insurance deduction |
 | `qbi_eligible_income` | §199A qualified business income |
