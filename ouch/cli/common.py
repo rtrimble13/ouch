@@ -16,7 +16,7 @@ from rich.console import Console
 from ouch.config import profile as profile_mod
 from ouch.config.settings import Settings, load_settings, resolve_tax_year
 from ouch.engine.pipeline import ResolvedData
-from ouch.errors import JurisdictionError
+from ouch.errors import ConfigError, JurisdictionError
 from ouch.model.input import TaxInput
 from ouch.taxdata import loader
 
@@ -44,6 +44,7 @@ def build_runtime(profile: Optional[str], year: Optional[int],
                   verbose: int, quiet: bool, no_color: bool,
                   dry_run: bool, explain: bool) -> Runtime:
     settings = load_settings(config)
+    _configure_taxdata(settings)
     tax_year = resolve_tax_year(settings, year, _dt.date.today().year)
     name = profile or str(settings.get("general.default_profile", "default"))
     output_format = fmt or str(settings.get("output.format", "table"))
@@ -53,6 +54,19 @@ def build_runtime(profile: Optional[str], year: Optional[int],
                    output_format=output_format, verbosity=verbosity,
                    no_color=no_color, dry_run=dry_run, explain=explain,
                    year_explicit=year is not None)
+
+
+def _configure_taxdata(settings: Settings) -> None:
+    """Point the loader at `taxdata.path`. A configured path that is not a
+    directory is an error, not a silent fallback to the shipped data — the
+    user's override would otherwise be ignored without a trace."""
+    value = str(settings.get("taxdata.path") or "").strip()
+    if value and not Path(value).expanduser().is_dir():
+        raise ConfigError(
+            f"taxdata.path '{value}' is not a directory",
+            hint=f"set by {settings.origins.get('taxdata.path', 'config')}; "
+                 "point it at a folder containing federal/, state/, local/")
+    loader.configure(value or None)
 
 
 def _derive_periods_remaining(raw: dict, today: _dt.date, tax_year: int) -> None:

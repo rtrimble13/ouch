@@ -1,7 +1,7 @@
 """Tax data discovery, schema validation, year resolution (spec §6).
 
-Search order: $OUCH_TAXDATA / configured path → XDG data dir → files packaged
-with ouch. First hit wins, so a user-supplied file overrides the shipped one.
+Search order: configured `taxdata.path` (config.toml, overridden by
+$OUCH_TAXDATA) → XDG data dir → files packaged with ouch. First hit wins, so a user-supplied file overrides the shipped one.
 YAML numbers are parsed and re-fed to pydantic as strings so every figure
 becomes an exact Decimal (floats never reach the engine).
 """
@@ -37,11 +37,27 @@ def _packaged_root() -> Path:
     return Path(str(resources.files("ouch.taxdata") / "data"))
 
 
+# The `taxdata.path` setting, resolved by the CLI shell from config.toml or
+# $OUCH_TAXDATA (settings precedence: env over config) via `configure()`.
+# Path resolution is shell work; the loader only receives the answer.
+_configured_root: Path | None = None
+
+
+def configure(path: str | os.PathLike[str] | None) -> None:
+    """Set (or, with an empty value, clear) the configured search root."""
+    global _configured_root
+    _configured_root = Path(path).expanduser() if path else None
+
+
 def search_paths() -> list[Path]:
     paths: list[Path] = []
-    env = os.environ.get("OUCH_TAXDATA")
-    if env:
-        paths.append(Path(env).expanduser())
+    if _configured_root is not None:
+        paths.append(_configured_root)
+    else:
+        # Library use without the CLI shell: honour the env var directly.
+        env = os.environ.get("OUCH_TAXDATA")
+        if env:
+            paths.append(Path(env).expanduser())
     paths.append(Path(user_data_dir("ouch")) / "taxdata")
     paths.append(_packaged_root())
     return paths

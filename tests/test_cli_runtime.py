@@ -107,3 +107,74 @@ def test_cli_past_year_profile_without_year_flag(tmp_path: Path):
         return json.loads(r.stdout)["result"]["total_payments"]
 
     assert payments() == payments("--year", "2025") == "13000.00"
+
+
+# --- issue #7: taxdata.path in config.toml is honoured ----------------------
+
+import os  # noqa: E402
+
+OR_PROFILE = """\
+schema_version = 2
+tax_year = 2025
+
+[taxpayer]
+filing_status = "single"
+state = "OR"
+
+[income.wages]
+taxpayer_w2 = 100000
+"""
+
+
+def _taxdata_dir(root: Path, rate: str) -> Path:
+    """A user data dir holding a fictional flat-rate OR file."""
+    src = Path(__file__).parent.parent / "ouch/taxdata/data/state/CO-2025.yaml"
+    text = (src.read_text().replace("jurisdiction: CO", "jurisdiction: OR")
+            .replace("rate: 0.044", f"rate: {rate}"))
+    (root / "state").mkdir(parents=True)
+    (root / "state" / "OR-2025.yaml").write_text(text)
+    return root
+
+
+def _run(tmp_path: Path, config_body: str | None, extra_env: dict | None = None,
+         *args: str) -> subprocess.CompletedProcess:
+    env = {k: v for k, v in os.environ.items() if k != "OUCH_TAXDATA"}
+    env.update({"XDG_CONFIG_HOME": str(tmp_path / "xdg-config"),
+                "XDG_DATA_HOME": str(tmp_path / "xdg-data")})
+    env.update(extra_env or {})
+    profile = tmp_path / "or.toml"
+    profile.write_text(OR_PROFILE)
+    cmd = [sys.executable, "-m", "ouch", "--profile", str(profile)]
+    if config_body is not None:
+        cfg = tmp_path / "config.toml"
+        cfg.write_text(config_body)
+        cmd += ["--config", str(cfg)]
+    return subprocess.run(cmd + ["--format", "json", *args, "estimate"],
+                          capture_output=True, text=True, timeout=120, env=env)
+
+
+def _state_tax(r: subprocess.CompletedProcess) -> str:
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)["result"]["state"]["tax"]
+
+
+def test_config_taxdata_path_is_searched(tmp_path: Path):
+    """CO's 2025 file applies its flat rate to federal taxable income
+    (100,000 − 15,000 = 85,000): at 5%, OR tax = 4,250."""
+    data = _taxdata_dir(tmp_path / "alt", "0.05")
+    r = _run(tmp_path, f'[taxdata]\npath = "{data}"\n')
+    assert _state_tax(r) == "4250.00"
+
+
+def test_env_taxdata_outranks_config(tmp_path: Path):
+    cfg_dir = _taxdata_dir(tmp_path / "from-config", "0.05")
+    env_dir = _taxdata_dir(tmp_path / "from-env", "0.10")
+    r = _run(tmp_path, f'[taxdata]\npath = "{cfg_dir}"\n',
+             {"OUCH_TAXDATA": str(env_dir)})
+    assert _state_tax(r) == "8500.00"
+
+
+def test_missing_taxdata_path_fails_loudly(tmp_path: Path):
+    r = _run(tmp_path, f'[taxdata]\npath = "{tmp_path / "nope"}"\n')
+    assert r.returncode == 3
+    assert "taxdata.path" in r.stderr and "not a directory" in r.stderr
