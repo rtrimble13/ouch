@@ -207,6 +207,7 @@ $ ouch withhold check
 Projected total tax                         $ 29,373
 Withheld to date (all jurisdictions)             $ 0
 Projected additional withholding                 $ 0     (10 periods × $ 0)
+Estimated payments                          $ 10,000
 Projected total payments                    $ 10,000
 ────────────────────────────────────────────────────────────
 Projected balance due                       $ 19,373

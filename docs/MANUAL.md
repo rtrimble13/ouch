@@ -202,7 +202,7 @@ ouch estimate --format json                  # wrong — not an estimate option
 | `--year`, `-y YEAR` | `OUCH_TAX_YEAR` | Tax year; outranks the profile's `tax_year` |
 | `--config`, `-c PATH` | `OUCH_CONFIG` | Alternate `config.toml` |
 | `--format`, `-f FMT` | — | `table` \| `json` \| `csv` \| `markdown` — see [§12](#12-output-formats) |
-| `--output`, `-o PATH` | — | Write to a file instead of stdout (JSON `estimate` only) |
+| `--output`, `-o PATH` | — | Write the command's output to a file instead of stdout — see [§12](#12-output-formats) |
 | `--verbose`, `-v` | — | Repeatable. `-vvv` prints the full trace from `estimate` |
 | `--quiet`, `-q` | — | Verbosity 0 |
 | `--no-color` | `OUCH_NO_COLOR`, `NO_COLOR` | Disable colour |
@@ -217,10 +217,10 @@ ouch estimate --format json                  # wrong — not an estimate option
 When `--year` is given explicitly it overwrites the profile's `tax_year` for
 the run.
 
-> **Known wart.** The footer of every `estimate` summary suggests
-> `ouch estimate --explain`, which is the *wrong* order and exits 2. Write
-> `ouch --explain estimate`. The same applies to `-v`: `ouch -vvv estimate`,
-> not `ouch estimate -vvv`.
+> **Order matters.** Global options go before the subcommand:
+> `ouch --explain estimate` and `ouch -vvv estimate`, not
+> `ouch estimate --explain` (which exits 2 with "No such option"). The
+> `estimate` footer suggests the correct form.
 
 ---
 
@@ -253,7 +253,7 @@ projected April balance.
 | `--marginal` | Append federal and combined marginal rates on the next $1,000 |
 | `--breakdown` | Print every trace line after the summary |
 | `--set PATH=VALUE` | Ad-hoc profile override; repeatable, never written to disk |
-| `--compare-filing-status` | **Accepted but not implemented** — output is unchanged |
+| `--compare-filing-status` | Run every filing status this profile can claim side by side — see below |
 
 `--set` takes the same dotted paths as the profile schema:
 
@@ -303,6 +303,52 @@ Lines appear only when non-zero: AMT, self-employment tax, Additional Medicare,
 NIIT, credits, state, local, and part-year former-state tax are each suppressed
 at zero. Warnings collect at the bottom.
 
+#### Comparing filing statuses
+
+`ouch estimate --compare-filing-status` runs the full pipeline once per filing
+status the profile can claim and prints them side by side, calling out the
+lowest total tax:
+
+```
+Filing status comparison · Tax Year 2025 · TX
+
+                                   Single  Head of household
+                                (current)
+────────────────────────────────────────────────────────────
+AGI                              $ 85,000           $ 85,000
+Deduction                        $ 15,000           $ 22,500
+Taxable income                   $ 70,000           $ 62,500
+Credits                           $ 2,000            $ 2,000
+Federal total                     $ 8,314            $ 5,160
+State tax                             $ 0                $ 0
+TOTAL TAX                         $ 8,314            $ 5,160
+Balance / (refund)                $ (686)          $ (3,840)
+Effective rate (AGI)                9.78%              6.07%
+
+Lowest total tax: Head of household — $ 3,154 less than single (current).
+```
+
+Which statuses are compared:
+
+| Status | Compared when |
+|---|---|
+| Single | Always (for an unmarried profile) |
+| Head of household | A dependent lived in your home more than six months, or is a `parent`; or the profile already claims it |
+| Qualifying surviving spouse | The profile already claims it — eligibility depends on a spouse's date of death, which the profile does not record |
+
+Statuses not compared are listed with the reason. Eligibility is checked only
+against what the profile records — confirm the marital-status, household-cost,
+and dependency tests yourself (IRS Pub. 501).
+
+**Married profiles are refused (exit 2).** A joint profile cannot be split
+into two separate returns: investment income, deductions, and payments are not
+attributed per spouse. To compare MFJ with MFS, create one profile per spouse
+with `filing_status = "married_filing_separately"` and compare the sum of their
+`ouch --profile NAME estimate` totals with the joint total.
+
+`--format json` emits every status's full result plus the omitted list. The
+flag cannot be combined with `--marginal`, `--breakdown`, or `--explain`.
+
 ### 6.3 `ouch explain LINE_ID`
 
 Walks the derivation of one trace line as a tree, with authority, rule, and
@@ -350,12 +396,19 @@ threshold, 100% otherwise. Without `payments.prior_year.total_tax` the
 prior-year test cannot run and the status becomes `?` rather than a
 false negative.
 
-> **Reading the columns.** "Projected additional withholding" reports the
-> **federal** per-period amount only, while "Projected total payments" includes
-> projected state and local withholding as well. When your profile sets
-> `state_per_period` or `local_per_period`, the four money lines will not add
-> up on the page. "Projected total payments" is the correct total; the line
-> above it is a federal subtotal.
+> **Reading the columns.** The money lines are an addition: withheld to date
+> plus projected additional withholding (plus any estimated payments) equals
+> projected total payments, all jurisdictions. When `state_per_period` or
+> `local_per_period` is set, the per-period figure is their sum with the
+> federal amount, and an indented line shows the split:
+>
+> ```
+> Projected additional withholding            $ 23,650     (11 periods × $ 2,150)
+>   per period: federal $ 1,450 · state $ 500 · local $ 200
+> Estimated payments                           $ 1,000
+> ```
+>
+> The safe-harbor block below is federal-only, and labelled as such.
 
 #### `ouch withhold solve`
 
@@ -433,8 +486,8 @@ See [§10](#10-scenario-reference) for the file format.
 | Subcommand | Purpose |
 |---|---|
 | `new NAME [--set PATH=VALUE]... [--template T] [--base P]` | Create a scenario |
-| `list` | List scenarios with their descriptions |
-| `show NAME` | Print a scenario's patch and assertions |
+| `list` | List scenarios with their descriptions and tags |
+| `show NAME` | Print a scenario's description, tags, patch, and assertions |
 | `delete NAME` | Delete a scenario file |
 | `run NAME` | Compare `baseline` against one scenario |
 | `compare NAME...` | Compare any number side by side |
@@ -634,6 +687,12 @@ jurisdiction, plus the deferred cost.
     Net present benefit @ 5% / 10 yr             $ 3,120
 ```
 
+Above the tax effect, a netting walk shows the short- and long-term amounts
+realized, any loss applied against ordinary income, and any carryforward. The
+ordinary-income line is marked `(capped at $ 3,000)` — `$ 1,500` for MFS —
+only when the §1211(b) cap actually bound; an unmarked amount was absorbed in
+full.
+
 Selling an IRA lot is refused outright. Wash-sale conflicts are reported after
 the numbers, with an explicit note that the pipeline figures assume the **full**
 loss.
@@ -830,7 +889,7 @@ Repeat the table for each dependent.
 
 | Key | Notes |
 |---|---|
-| `schedule_c_net` | Net self-employment income |
+| `schedule_c_net` | Net self-employment income. A loss (negative) reduces total income and AGI; at-risk, passive-activity, hobby-loss, and excess-business-loss limits are not modeled, and a warning says so |
 | `se_health_premiums` | Self-employed health insurance deduction |
 | `qbi_eligible_income` | §199A qualified business income |
 | `qbi_w2_wages_paid` | For the wage limitation above the threshold |
@@ -888,12 +947,10 @@ no new AMT; any remainder is reported as carrying forward.
 | `pay_periods_per_year` | `24` | 1–53 |
 | `periods_remaining` | derived | Left at 0, the CLI derives it from today's date |
 
-> **Set `periods_remaining` explicitly when modelling a year that is not the
-> current one.** The derivation uses the *resolved* tax year, which defaults to
-> the current calendar year rather than the profile's `tax_year`. Re-running a
-> 2025 profile in 2026 without `--year 2025` will therefore project a full
-> year's remaining paychecks into a closed year and overstate your payments.
-> Either pass `--year` to match the profile or pin `periods_remaining = 0`.
+The derivation uses the year being computed — `--year` if given, otherwise the
+profile's `tax_year`. A year that has already closed projects no further
+paychecks (0), a future year projects all of them, and the current year
+prorates by the days left. Set `periods_remaining` yourself to override it.
 
 ### `[payments.estimated]`
 
@@ -965,7 +1022,7 @@ Override its location with `--config PATH` or `OUCH_CONFIG`.
 | `output.verbosity` | `1` | Active — floor for `-v` |
 | `output.show_citations` | `true` | Active — `explain` shows authorities |
 | `output.round_display` | `"dollar"` | Reserved, not yet consumed |
-| `taxdata.path` | `""` | **Not consumed — use `OUCH_TAXDATA`** |
+| `taxdata.path` | `""` | Active — your tax data directory, searched first (`OUCH_TAXDATA` overrides it). Must exist if set |
 | `taxdata.strict_year` | `true` | Reserved, not yet consumed |
 | `taxdata.allow_projected` | `false` | Reserved, not yet consumed |
 | `privacy.encrypt_profiles` | `false` | Reserved — profile encryption is deferred |
@@ -1000,7 +1057,7 @@ model   = "claude-opus-5"
 | `OUCH_PROFILE` | Default profile name |
 | `OUCH_TAX_YEAR` | Default tax year |
 | `OUCH_CONFIG` | Alternate `config.toml` path |
-| `OUCH_TAXDATA` | **Highest-priority tax data directory** |
+| `OUCH_TAXDATA` | Tax data directory — overrides `taxdata.path` |
 | `OUCH_AI_ENABLED` | Enable the AI feature (`1` to turn on) |
 | `OUCH_NO_COLOR` / `NO_COLOR` | Disable colour |
 
@@ -1013,7 +1070,7 @@ model   = "claude-opus-5"
 Files are looked up in this order; the **first hit wins**, so your own file
 shadows the shipped one:
 
-1. `$OUCH_TAXDATA/`
+1. `taxdata.path` from `config.toml`, or `$OUCH_TAXDATA`, which overrides it
 2. `~/.local/share/ouch/taxdata/`
 3. the files packaged with `ouch`
 
@@ -1157,6 +1214,13 @@ violation prints and exits **9**:
 | `relocate-state` | `taxpayer.state`, `taxpayer.locality` |
 | `solo401k` | `adjustments.sep_solo401k` |
 
+Each scenario loads the tax data its *patched* profile needs, so a patch to
+`taxpayer.state`, `taxpayer.locality`, `taxpayer.former_state`,
+`taxpayer.residency_months`, or `tax_year` is computed with that jurisdiction's
+and year's rates. `relocate-state` compares income tax only: property, sales,
+insurance, and cost of living are outside `ouch`'s scope, and the template's
+description says so.
+
 ---
 
 ## 11. Portfolio (lot CSV) reference
@@ -1219,10 +1283,17 @@ commands vary their output:
 
 `markdown` currently renders identically to `table`.
 
-`--output PATH` writes to a file instead of stdout. It applies **only** to
-`estimate --format json`; with any other command or format it is silently
-ignored and output still goes to stdout (exit 0, no file created). `profile show` and `data show` always print JSON to
-stdout; redirect with your shell if you need a file.
+`--output PATH` writes whatever the command would have printed to `PATH`
+instead of stdout, for every command and format: the `estimate` panel, JSON,
+`scenario sweep --format csv`, `profile show`, `withhold check`, and the rest.
+Errors still go to stderr. The file is written only when the command
+succeeds, so a failed run leaves no partial file (and the exit code says why).
+
+`--output` is refused (exit 2) when its parent directory does not exist, when
+combined with `--dry-run` (which promises no disk writes), and for interactive
+commands whose prompts need their context on the terminal: `init`, `agent`,
+and `import pdf` without `--yes`. `ask` keeps its consent notice on the
+terminal and writes the answer to the file.
 
 ### JSON document shape
 
@@ -1389,25 +1460,16 @@ itemization, and part-year allocation by residency-month ratio.
 | Saver's credit | approximate | Student and dependent exclusions, and recent-distribution offsets, are not modeled |
 | Annualized installments | approximate | Your income fractions, not the statutory Schedule AI factors |
 | PA state | approximate | Eight income classes modeled as a flat rate on federal AGI |
+| Schedule C loss | approximate | Reduces income in full; at-risk, passive-activity, hobby-loss, and §461(l) excess-business-loss limits are not modeled |
 
 The worst fidelity across all lines appears in the `estimate` header.
 
 ### Known defects
 
-Behaviour that is wrong rather than merely simplified. Each was reproduced at
-the command line against this version; work around them until they are fixed.
-
-| Defect | Effect | Workaround |
-|---|---|---|
-| **A negative `income.business.schedule_c_net` is discarded.** | A $20,000 business loss produces output byte-identical to no business at all, with no warning. | Model a loss with `income.other.other_income` (it flows to AGI), and treat the SE-tax and QBI lines as unreliable in that case. |
-| **`periods_remaining` derives from the resolved tax year, not the profile's.** | Re-running a past-year profile without `--year` projects a full year of remaining paychecks into a closed year and overstates payments. | Pass `--year` to match the profile, or set `periods_remaining` explicitly. |
-| **`withhold check` mixes subtotals.** | "Projected additional withholding" is federal-only while "Projected total payments" is all-jurisdiction, so the columns do not add up when `state_per_period` / `local_per_period` are set. | Trust "Projected total payments"; the line above it is a federal subtotal. |
-| **`harvest simulate` always labels the ordinary offset `(limited)`.** | The marker appears even when the amount is far below the $3,000 cap. | Compare the amount against $3,000 yourself. |
-| **`estimate --compare-filing-status` does nothing.** | Accepted, exits 0, output unchanged. | Run `estimate` once per status with `--set taxpayer.filing_status=…`. |
-| **`estimate --output` is ignored unless `--format json`.** | No file, no warning, exit 0. | Pair `--output` with `--format json`, or redirect with your shell. |
-| **Scenario tags never render.** | `scenario list` shows descriptions but silently swallows `tags` (Rich reads `[retirement]` as markup). | `ouch scenario show NAME`, or read the TOML. |
-| **The `relocate-state` template is misleading.** | Patching `taxpayer.state` does not reload tax data, so the comparison shows Δ 0; its description is also truncated mid-sentence. | Use `estimate --state CODE`. |
-| **The `estimate` footer suggests a command that does not parse.** | It prints ``Run `ouch estimate --explain` for detail``, which exits 2. | Write `ouch --explain estimate`. |
+None known at this version. The defects listed here in earlier versions
+(rtrimble13/ouch#2, #3 and #5–#14) are fixed. Report anything that is wrong
+rather than merely simplified as an issue, with the profile and command that
+reproduce it.
 
 ### Not implemented
 
@@ -1445,11 +1507,14 @@ measured by re-running the pipeline with $1,000 more income, so it includes
 NIIT, phase-outs, and state/local effects. `ouch scenario sweep` around your
 income will show where the jumps are.
 
-**`--format json` did nothing.** Only `estimate` emits JSON. `scenario sweep`
-is the one command that honours `--format csv`.
+**`--format json` did nothing.** Only `estimate` (including
+`--compare-filing-status`) emits JSON. `scenario sweep` is the one command that
+honours `--format csv`.
 
-**The taxdata path in my `config.toml` is ignored.** It is — `taxdata.path` is
-not consumed. Use the `OUCH_TAXDATA` environment variable.
+**`taxdata.path '…' is not a directory`** — the path set in `config.toml` (or
+`$OUCH_TAXDATA`, which overrides it) does not exist. The error names where it
+was set. Fix the path rather than removing it, or your own data files will
+not be used.
 
 **Two W-2s summed into one person.** Owner assignment happens per document
 during `import pdf`. `--yes` assigns everything to `taxpayer`; use `--owner` or

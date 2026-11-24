@@ -7,8 +7,8 @@ distributions. Their advisor suggested "filling up the 24% bracket."
 **Commands introduced:** `ouch scenario new / list / show / delete / run /
 compare / sweep`
 **Concepts:** patches vs copies · relative and computed values · marginal cost
-of a change · cliff detection · assertions as guardrails · what a scenario
-patch cannot do
+of a change · cliff detection · assertions as guardrails · changing
+jurisdiction
 
 ---
 
@@ -375,11 +375,11 @@ Operators: `lt`, `le`, `gt`, `ge`, `eq`. Paths address the result object, e.g.
 
 ---
 
-## 7. What a scenario patch cannot do
+## 7. Changing jurisdiction
 
-One important limitation. **A patch that changes `taxpayer.state` or
-`taxpayer.locality` does not reload the tax data.** The jurisdiction files are
-resolved once, from the unpatched profile, before any scenario runs.
+A patch can move the household, not just change its numbers. Each scenario
+loads the tax data its *patched* profile needs, so changing `taxpayer.state`
+or `taxpayer.locality` applies the new jurisdiction's rates:
 
 ```bash
 $ ouch scenario new tx-move --template relocate-state
@@ -387,37 +387,45 @@ $ ouch scenario compare baseline tx-move
 ```
 
 ```
-State tax                         $ 12,320      $ 12,320
-TOTAL TAX                         $ 63,854      $ 63,854
+                                  baseline       tx-move
+────────────────────────────────────────────────────────
+AGI                              $ 310,000     $ 310,000
+Taxable income                   $ 280,000     $ 280,000
+Federal total                     $ 51,534      $ 51,534
+NIIT                               $ 1,520       $ 1,520
+State tax                         $ 12,320           $ 0
+TOTAL TAX                         $ 63,854      $ 51,534
+Effective rate (AGI)                20.60%        16.62%
+Marginal rate (next $)              29.30%        24.90%
+
+tx-move: Δ tax vs baseline $ (12,320)
 ```
 
-Δ 0 — because Colorado's data was used for both columns, even though the patch
-sets `taxpayer.state = "TX"`. The `relocate-state` template will mislead you if
-you take that result at face value.
+**$12,320 a year.** No marginal cost is printed, because a state code has no
+numeric Δ input. The federal column doesn't move, since Colorado's tax never
+reached the federal return here (the SALT deduction goes unused under the
+standard deduction).
 
-Model relocation with `estimate --state` instead, which resolves the data
-*after* the override:
+Read the template's description before you act on that figure:
 
 ```bash
-$ ouch estimate                    # Colorado
-$ ouch estimate --state TX         # Texas
+$ ouch scenario show tx-move
 ```
 
 ```
-╭─ ouch · Tax Year 2026 · Married Filing Jointly · CO · fidelity: exact ─╮
-│ CO state tax                                        $ 12,320           │
-│ TOTAL TAX BURDEN                                    $ 63,854           │
-
-╭─ ouch · Tax Year 2026 · Married Filing Jointly · TX · fidelity: exact ─╮
-│ TOTAL TAX BURDEN                                    $ 51,534           │
+tx-move (base: default)
+  Move to a no-income-tax state (income tax only — property, sales, insurance and cost of living are outside ouch's scope)
+  tags: relocation
+  taxpayer.state = 'TX'
+  taxpayer.locality = ''
 ```
 
-**$12,320 a year**, which is the real answer. (Income tax only — property
-taxes, sales tax, insurance, and cost of living are outside `ouch`'s scope, and
-they are frequently what makes the move a wash.)
+Property tax, sales tax, insurance, and cost of living are often what makes a
+move a wash, and they are outside `ouch`'s scope.
 
-Use scenarios for anything that varies *within* a jurisdiction, and
-`--state` / `--locality` for anything that changes the jurisdiction.
+For a quick one-off you can skip the scenario file: `ouch estimate --state TX`
+gives the same $51,534. The scenario is worth keeping when you want to compare
+the move against other changes, or sweep income under both states.
 
 ---
 
@@ -430,7 +438,7 @@ $ ouch scenario list
 ```
   guardrail                Convert only while the federal marginal rate stays under 30%
   roth-140k
-  roth-max                 Convert from traditional IRA before year end
+  roth-max                 Convert from traditional IRA before year end  [retirement]
   tuned                    10% raise, and a solo 401(k) sized at 10% of wages
 ```
 
@@ -441,6 +449,7 @@ $ ouch scenario show roth-max
 ```
 roth-max (base: default)
   Convert from traditional IRA before year end
+  tags: retirement
   income.retirement.roth_conversion = 75000
   assert result.marginal_rate_federal lt 0.35
 ```

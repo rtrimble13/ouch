@@ -112,7 +112,7 @@ $ ouch estimate
 │   ⚠  Prior-year figures missing — prior-year safe-harbor test disabled │
 ╰────────────────────────────────────────────────────────────────────────╯
   Estimates only. ouch is not tax advice and does not prepare or file returns.
-  Run `ouch estimate --explain` for detail.
+  Run `ouch --explain estimate` for detail.
 ```
 
 Read the header first. `Single · TX` confirms the jurisdictions;
