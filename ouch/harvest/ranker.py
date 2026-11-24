@@ -132,6 +132,13 @@ class NettingWalk:
     ordinary_offset: Money    # loss applied against ordinary income (<= 0)
     carryforward_st: Money
     carryforward_lt: Money
+    offset_limit: Money       # §1211(b) cap: $3,000, or $1,500 MFS
+
+    @property
+    def offset_capped(self) -> bool:
+        """True only when the §1211(b) cap actually bound this year."""
+        return (self.ordinary_offset < ZERO
+                and -self.ordinary_offset >= self.offset_limit)
 
 
 @dataclass(frozen=True)
@@ -212,7 +219,8 @@ def simulate(lot_ids: list[str], lots: list[Lot], base_raw: dict,
             st_realized=st_delta, lt_realized=lt_delta,
             ordinary_offset=minm(netting.ordinary_component, ZERO),
             carryforward_st=netting.carryforward_st,
-            carryforward_lt=netting.carryforward_lt),
+            carryforward_lt=netting.carryforward_lt,
+            offset_limit=offset_limit),
         basis_reduction=basis_reduction, future_rate=future_rate,
         future_tax_cost=future_tax_cost.round_cent(),
         npv_benefit=npv.round_cent(), discount_rate=discount_rate,

@@ -88,3 +88,45 @@ def test_harvest_import_invalid_csv_exit_4(home, tmp_path):
     r = run_cli(home, "harvest", "import", str(bad))
     assert r.returncode == 4
     assert "missing columns" in r.stderr
+
+
+def _profile_with_st_gains(home, st_gains: int, status: str = "single") -> None:
+    profiles = Path(home["XDG_CONFIG_HOME"]) / "ouch" / "profiles"
+    (profiles / "default.toml").write_text(
+        PROFILE.replace('filing_status = "single"',
+                        f'filing_status = "{status}"')
+               .replace("short_term_gains = 10000",
+                        f"short_term_gains = {st_gains}"))
+
+
+def _simulate_l1(home, tmp_path) -> str:
+    lots_file = tmp_path / "lots.csv"
+    lots_file.write_text(LOTS)
+    assert run_cli(home, "harvest", "import", str(lots_file)).returncode == 0
+    r = run_cli(home, "harvest", "simulate", "--sell", "L-1",
+                "--as-of", "2025-12-12")
+    assert r.returncode == 0, r.stderr
+    return next(l for l in r.stdout.splitlines()
+                if "against ordinary income" in l)
+
+
+def test_simulate_offset_below_cap_not_marked(home, tmp_path):
+    """Issue #11: 4,700 of ST gains less L-1's 5,000 loss → $300 against
+    ordinary income, nowhere near the $3,000 cap — no cap annotation."""
+    _profile_with_st_gains(home, 4_700)
+    line = _simulate_l1(home, tmp_path)
+    assert "$ (300)" in line
+    assert "capped" not in line and "limited" not in line
+
+
+def test_simulate_offset_at_cap_says_so(home, tmp_path):
+    """No gains: the 5,000 loss hits the $3,000 cap (2,000 carries)."""
+    _profile_with_st_gains(home, 0)
+    line = _simulate_l1(home, tmp_path)
+    assert "$ (3,000)" in line and "capped at $ 3,000" in line
+
+
+def test_simulate_offset_cap_is_1500_mfs(home, tmp_path):
+    _profile_with_st_gains(home, 0, status="married_filing_separately")
+    line = _simulate_l1(home, tmp_path)
+    assert "$ (1,500)" in line and "capped at $ 1,500" in line

@@ -155,8 +155,10 @@ def simulate(ctx: typer.Context,
     console.print(f"  Long-term realized                    "
                   f"{sim.netting.lt_realized.fmt():>12}")
     if sim.netting.ordinary_offset < ZERO:
+        note = (f"   (capped at {sim.netting.offset_limit.fmt()})"
+                if sim.netting.offset_capped else "")
         console.print(f"  Loss applied against ordinary income  "
-                      f"{sim.netting.ordinary_offset.fmt():>12}   (limited)")
+                      f"{sim.netting.ordinary_offset.fmt():>12}{note}")
     if sim.netting.carryforward_st + sim.netting.carryforward_lt > ZERO:
         console.print(f"  Carryforward to {sim.before.year + 1}                 "
                       f"    ST {sim.netting.carryforward_st.fmt()} · "
