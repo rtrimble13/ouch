@@ -28,7 +28,7 @@ REVIEW_PROMPT = (
 
 
 def _gate(rt: Runtime, assume_yes: bool) -> None:
-    if getattr(rt, "no_ai", False):
+    if rt.no_ai:
         raise AgentError(
             "AI is hard-disabled for this run (--no-ai)")
     enabled = rt.settings.get("ai.enabled", False)
@@ -53,7 +53,7 @@ def _build_session(rt: Runtime, assume_yes: bool) -> AgentSession:
     require_confirm = str(rt.settings.get("ai.require_confirmation",
                                           True)).lower() not in ("0", "false")
     if require_confirm and not assume_yes:
-        rt.console().print(
+        rt.terminal_console().print(   # the prompt below depends on it
             f"⚠ {context_mod.transmission_notice(rt.settings, inp)}")
         typer.confirm("  Proceed?", abort=True)
 
@@ -94,6 +94,9 @@ def agent(ctx: typer.Context,
                                    help="Skip the transmission confirmation")) -> None:
     """Interactive AI CPA session."""
     rt: Runtime = ctx.obj
+    rt.require_terminal("`agent`, which is interactive",
+                        hint="use `ouch --output FILE ask \"…\"` to capture "
+                             "a single answer")
     _gate(rt, yes)
     session = _build_session(rt, yes)
     console = rt.console()

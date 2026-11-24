@@ -64,7 +64,7 @@ def show(ctx: typer.Context,
             if not isinstance(doc, dict) or part not in doc:
                 raise TaxDataError(f"key '{key}' not found in data file")
             doc = doc[part]
-    print(json.dumps(doc, indent=2, default=str))
+    rt.echo(json.dumps(doc, indent=2, default=str))
 
 
 @app.command("verify")

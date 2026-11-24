@@ -28,4 +28,4 @@ def show(ctx: typer.Context,
 @app.command("path")
 def path_cmd(ctx: typer.Context) -> None:
     """Print the config file path."""
-    print(default_config_path())
+    ctx.obj.echo(str(default_config_path()))

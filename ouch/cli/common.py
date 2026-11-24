@@ -7,16 +7,18 @@ in the engine.
 from __future__ import annotations
 
 import datetime as _dt
+import io
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, TextIO
 
 from rich.console import Console
 
 from ouch.config import profile as profile_mod
 from ouch.config.settings import Settings, load_settings, resolve_tax_year
 from ouch.engine.pipeline import ResolvedData
-from ouch.errors import ConfigError, JurisdictionError
+from ouch.errors import ConfigError, UsageError
 from ouch.model.input import TaxInput
 from ouch.taxdata import loader
 
@@ -33,16 +35,66 @@ class Runtime:
     explain: bool
     year_explicit: bool = False
     overrides: list[str] = field(default_factory=list)
+    output_path: Optional[Path] = None   # global --output
+    no_ai: bool = False
+    _buffer: Optional[io.StringIO] = field(default=None, repr=False)
+
+    # --- output sink (global --output) -------------------------------------
+    # Every command writes through `out` — via `console()` or `echo()` — so
+    # `--output` captures whatever the command would have printed. Output is
+    # buffered and written only when the command succeeds (`flush_output`),
+    # so a failed run never leaves a partial file behind.
+
+    @property
+    def out(self) -> TextIO:
+        if self.output_path is None:
+            return sys.stdout
+        if self._buffer is None:
+            self._buffer = io.StringIO()
+        return self._buffer
+
+    def _no_color(self) -> bool:
+        return self.no_color or self.settings.get("general.color") == "never"
 
     def console(self) -> Console:
-        return Console(no_color=self.no_color or
-                       self.settings.get("general.color") == "never")
+        return Console(file=self.out, no_color=self._no_color())
+
+    def terminal_console(self) -> Console:
+        """Always the terminal, even under --output: for text a prompt
+        depends on, which the user must see before answering."""
+        return Console(no_color=self._no_color())
+
+    def echo(self, text: str) -> None:
+        """Plain (non-Rich) output — JSON, CSV, file contents, paths."""
+        print(text, file=self.out)
+
+    def require_terminal(self, what: str, hint: str | None = None) -> None:
+        """Refuse --output for an interactive command, whose prompts need
+        their context on the terminal rather than in a file."""
+        if self.output_path is not None:
+            raise UsageError(f"--output is not supported for {what}",
+                             hint=hint or "run it without --output")
+
+    def flush_output(self) -> None:
+        if self.output_path is not None:
+            self.output_path.write_text(
+                self._buffer.getvalue() if self._buffer else "")
 
 
 def build_runtime(profile: Optional[str], year: Optional[int],
                   config: Optional[Path], fmt: Optional[str],
                   verbose: int, quiet: bool, no_color: bool,
-                  dry_run: bool, explain: bool) -> Runtime:
+                  dry_run: bool, explain: bool, *,
+                  output: Optional[Path] = None,
+                  no_ai: bool = False) -> Runtime:
+    if output is not None:
+        if dry_run:
+            raise UsageError("--output and --dry-run conflict",
+                             hint="--dry-run writes nothing to disk; drop one")
+        if not output.expanduser().parent.is_dir():
+            raise UsageError(
+                f"--output directory does not exist: "
+                f"{output.expanduser().parent}")
     settings = load_settings(config)
     _configure_taxdata(settings)
     tax_year = resolve_tax_year(settings, year, _dt.date.today().year)
@@ -53,7 +105,9 @@ def build_runtime(profile: Optional[str], year: Optional[int],
     return Runtime(settings=settings, profile_name=name, tax_year=tax_year,
                    output_format=output_format, verbosity=verbosity,
                    no_color=no_color, dry_run=dry_run, explain=explain,
-                   year_explicit=year is not None)
+                   year_explicit=year is not None,
+                   output_path=output.expanduser() if output else None,
+                   no_ai=no_ai)
 
 
 def _configure_taxdata(settings: Settings) -> None:

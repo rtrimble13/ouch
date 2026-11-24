@@ -194,3 +194,21 @@ def test_relocate_state_template_reports_real_difference(home):
 
     shown = run_cli(home, "scenario", "show", "tx-move")
     assert "cost of living are outside ouch's scope)" in shown.stdout
+
+
+def test_import_output_requires_yes(home, tmp_path):
+    """Issue #13: non-interactive import is captured by --output; the
+    interactive review refuses it rather than prompting blind."""
+    pdf = _make_pdf(tmp_path / "w2.pdf", [
+        "Form W-2 Wage and Tax Statement", "OMB No. 1545-0008",
+        "1 Wages, tips, other compensation 142,000.00",
+        "2 Federal income tax withheld 21,400.00",
+        "3 Social security wages 142,000.00"])
+    out = tmp_path / "import.log"
+    r = run_cli(home, "--output", str(out), "import", "pdf", str(pdf))
+    assert r.returncode == 2 and "--yes" in r.stderr
+    assert not out.exists()
+    r = run_cli(home, "--output", str(out), "import", "pdf", "--yes",
+                "--owner", "taxpayer", str(pdf))
+    assert r.returncode == 0, r.stderr
+    assert "Provenance recorded" in out.read_text()

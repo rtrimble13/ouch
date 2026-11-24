@@ -66,12 +66,7 @@ def estimate(
     console = rt.console()
 
     if rt.output_format == "json":
-        text = render_json(result)
-        out = getattr(rt, "output_path", None)
-        if out:
-            out.write_text(text + "\n")
-        else:
-            print(text)
+        rt.echo(render_json(result))
         return
 
     render_summary(result, inp.taxpayer.filing_status,
@@ -122,7 +117,7 @@ def _compare_statuses(rt: Runtime, inp, data) -> None:
     if rt.output_format == "json":
         import json
         import ouch
-        print(json.dumps({
+        rt.echo(json.dumps({
             "ouch_version": ouch.__version__,
             "tax_year": inp.tax_year,
             "current_filing_status": str(current),

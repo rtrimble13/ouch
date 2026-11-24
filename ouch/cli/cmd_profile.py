@@ -15,7 +15,7 @@ def show(ctx: typer.Context) -> None:
     """Print the resolved profile as validated input."""
     rt: Runtime = ctx.obj
     inp = load_input(rt)
-    print(inp.model_dump_json(indent=2))
+    rt.echo(inp.model_dump_json(indent=2))
 
 
 @app.command("validate")
@@ -39,7 +39,7 @@ def new(ctx: typer.Context,
                       abort=True)
     content = profile_mod.PROFILE_TEMPLATE.format(year=rt.tax_year)
     if rt.dry_run:
-        print(content)
+        rt.echo(content)
         return
     profile_mod.write_profile(path, content)
     rt.console().print(f"✔ profile written to {path}")
@@ -49,4 +49,4 @@ def new(ctx: typer.Context,
 def path_cmd(ctx: typer.Context) -> None:
     """Print the profile path in use."""
     rt: Runtime = ctx.obj
-    print(profile_mod.resolve_profile_path(rt.profile_name))
+    rt.echo(str(profile_mod.resolve_profile_path(rt.profile_name)))

@@ -44,6 +44,11 @@ def import_pdf(
     from ouch.pdf.maps_loader import load_maps
 
     rt: Runtime = ctx.obj
+    if not yes:
+        rt.require_terminal(
+            "interactive review",
+            hint="add --yes to accept fields above the confidence threshold "
+                 "without prompting (pass --owner for W-2s)")
     console = rt.console()
     if owner is not None and owner not in ("taxpayer", "spouse"):
         raise UsageError("--owner must be 'taxpayer' or 'spouse'")

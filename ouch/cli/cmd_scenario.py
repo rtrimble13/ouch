@@ -76,7 +76,7 @@ def new(ctx: typer.Context,
             lines.append(f'"{key.strip()}" = {rendered}')
         content = "\n".join(lines) + "\n"
     if rt.dry_run:
-        print(content)
+        rt.echo(content)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
@@ -236,13 +236,13 @@ def sweep_cmd(
 
     if rt.output_format == "csv":
         header = [var, "total_tax", "step_marginal", "cliff"] + metrics
-        print(",".join(header))
+        rt.echo(",".join(header))
         for p in points:
             row = [str(p.value), str(p.total_tax),
                    "" if p.step_marginal is None else str(p.step_marginal),
                    "1" if p.cliff else ""]
             row += [str(p.metrics[m]) for m in metrics]
-            print(",".join(row))
+            rt.echo(",".join(row))
         return
 
     console = rt.console()
