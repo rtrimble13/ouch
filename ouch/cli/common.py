@@ -74,6 +74,29 @@ def _derive_periods_remaining(raw: dict, today: _dt.date, tax_year: int) -> None
     withholding["periods_remaining"] = round(ppy * days_left / 365)
 
 
+def effective_tax_year(rt: Runtime, raw: dict) -> int:
+    """The year the engine will actually compute for this profile: `--year`
+    outranks the profile (§5.1); otherwise the profile's own `tax_year`,
+    falling back to the resolved runtime year only when the profile omits it.
+    Mirrors `profile.build_tax_input`."""
+    if rt.year_explicit:
+        return rt.tax_year
+    value = raw.get("tax_year")
+    return int(value) if value else rt.tax_year
+
+
+def prepare_raw(rt: Runtime, raw: dict, *,
+                today: _dt.date | None = None) -> None:
+    """Shell-side normalisation every command applies before building a
+    TaxInput: pin the effective tax year, then derive `periods_remaining`
+    from *that* year — not the runtime default, which for a past-year
+    profile would project paychecks into a year that has already closed."""
+    if rt.year_explicit:
+        raw["tax_year"] = rt.tax_year  # CLI flag outranks the profile (§5.1)
+    _derive_periods_remaining(raw, today or _dt.date.today(),
+                              effective_tax_year(rt, raw))
+
+
 def load_input(rt: Runtime, *, extra_overrides: list[str] | None = None,
                state_override: str | None = None,
                locality_override: str | None = None) -> TaxInput:
@@ -85,9 +108,7 @@ def load_input(rt: Runtime, *, extra_overrides: list[str] | None = None,
         raw.setdefault("taxpayer", {})["state"] = state_override
     if locality_override is not None:
         raw.setdefault("taxpayer", {})["locality"] = locality_override
-    if rt.year_explicit:
-        raw["tax_year"] = rt.tax_year  # CLI flag outranks the profile (§5.1)
-    _derive_periods_remaining(raw, _dt.date.today(), rt.tax_year)
+    prepare_raw(rt, raw)
     return profile_mod.build_tax_input(raw, rt.tax_year)
 
 

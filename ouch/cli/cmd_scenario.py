@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import datetime as _dt
 from decimal import Decimal
 from typing import List, Optional
 
 import typer
 
 from ouch import DISCLAIMER
-from ouch.cli.common import Runtime, load_data
+from ouch.cli.common import Runtime, load_data, prepare_raw
 from ouch.config import profile as profile_mod
 from ouch.engine import pipeline
 from ouch.errors import ComputationError, UsageError
@@ -22,10 +21,9 @@ app = typer.Typer(no_args_is_help=True)
 
 
 def _base_raw(rt: Runtime, base: str) -> dict:
-    from ouch.cli.common import _derive_periods_remaining
     raw, _ = profile_mod.load_profile_raw(
         base if base != "default" else rt.profile_name)
-    _derive_periods_remaining(raw, _dt.date.today(), rt.tax_year)
+    prepare_raw(rt, raw)
     return raw
 
 

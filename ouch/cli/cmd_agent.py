@@ -6,7 +6,6 @@ transmission, --no-ai hard-disables all network paths for a run.
 
 from __future__ import annotations
 
-import datetime as _dt
 from typing import Optional
 
 import typer
@@ -16,7 +15,7 @@ from ouch.agent import context as context_mod
 from ouch.agent.client import make_client
 from ouch.agent.session import AgentSession
 from ouch.agent.tools import ToolExecutor
-from ouch.cli.common import Runtime, load_data
+from ouch.cli.common import Runtime, load_data, prepare_raw
 from ouch.config import profile as profile_mod
 from ouch.engine import pipeline
 from ouch.errors import AgentError
@@ -42,9 +41,8 @@ def _gate(rt: Runtime, assume_yes: bool) -> None:
 
 
 def _build_session(rt: Runtime, assume_yes: bool) -> AgentSession:
-    from ouch.cli.common import _derive_periods_remaining
     raw, _ = profile_mod.load_profile_raw(rt.profile_name)
-    _derive_periods_remaining(raw, _dt.date.today(), rt.tax_year)
+    prepare_raw(rt, raw)
     raw = context_mod.redact_profile(raw)
     build = lambda r: profile_mod.build_tax_input(r, rt.tax_year)  # noqa: E731
     inp = build(raw)

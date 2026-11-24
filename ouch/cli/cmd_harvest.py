@@ -33,9 +33,9 @@ def _as_of(value: Optional[str]) -> _dt.date:
 
 
 def _context(rt: Runtime):
-    from ouch.cli.common import _derive_periods_remaining
+    from ouch.cli.common import prepare_raw
     raw, _ = profile_mod.load_profile_raw(rt.profile_name)
-    _derive_periods_remaining(raw, _dt.date.today(), rt.tax_year)
+    prepare_raw(rt, raw)
     build = lambda r: profile_mod.build_tax_input(r, rt.tax_year)  # noqa: E731
     data = load_data(build(raw))
     return raw, build, data
