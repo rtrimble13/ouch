@@ -180,6 +180,21 @@ class Amt(_Model):
     phaseout_threshold: StatusAmount
     phaseout_rate: Decimal
     brackets: list[Bracket]
+    # §55(b)(1): married filing separately reaches 28% at half the amount.
+    # Absent, MFS uses `brackets` (files written before this field existed).
+    brackets_mfs: Optional[list[Bracket]] = None
+
+    @field_validator("brackets", "brackets_mfs")
+    @classmethod
+    def _ordered(cls, v: Optional[list[Bracket]], info) -> Optional[list[Bracket]]:
+        if v is not None:
+            _validate_brackets(v, f"amt.{info.field_name}")
+        return v
+
+    def brackets_for(self, status: FilingStatus) -> list[Bracket]:
+        if status == FilingStatus.MARRIED_FILING_SEPARATELY and self.brackets_mfs:
+            return self.brackets_mfs
+        return self.brackets
 
 
 class CapitalLoss(_Model):
