@@ -8,7 +8,7 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [0.1.0] - 2026-11-25
 
-The first tagged release. It covers the work merged before versioning began: specification milestones M1 to M5 and the defect fixes that followed review.
+The first tagged release. It covers the work merged before versioning began: specification milestones M1 to M5, the defect fixes that followed review, and the SALT cap phase-down engine (rtrimble13/ouch#20).
 
 Tax data for 2025 and 2026 predates the One Big Beautiful Bill Act (P.L. 119-21) and ships `verified: false`. Estimates computed from it are under superseded law; rtrimble13/ouch#19 tracks the update.
 
@@ -20,6 +20,7 @@ Tax data for 2025 and 2026 predates the One Big Beautiful Bill Act (P.L. 119-21)
 - **AI CPA agent (M4):** `ouch ask` and `ouch agent [--review]`, grounded in tool results with dollar-figure verification; off by default.
 - **Depth (M5):** the full credit suite (EITC, child and dependent care, AOTC, LLC, saver's), part-year residency, the AMT credit carryforward, `ouch withhold estimates [--annualized]`, and CA, CO, MA, FL and WA data.
 - `estimate --compare-filing-status`.
+- The SALT cap phase-down for high-income itemizers (IRC §164(b)(7)): a typed `salt_cap.phasedown` section in the tax-data schema, and an engine that reduces the cap by the phase-down rate above the MAGI threshold, down to the floor. No shipped data file uses it yet, so no estimate changes.
 
 ### Fixed
 
