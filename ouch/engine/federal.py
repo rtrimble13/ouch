@@ -102,7 +102,7 @@ def amt_additional(taxable_income: Money, pref_income: Money,
     # Preferential income keeps its 0/15/20 rates under AMT.
     pref_in_base = minm(maxm(pref_income, ZERO), base)
     ord_base = base - pref_in_base
-    tmt = apply_brackets(ord_base, amt.brackets)
+    tmt = apply_brackets(ord_base, amt.brackets_for(status))
     floor = ord_base
     remaining = pref_in_base
     for band in pref_brackets:

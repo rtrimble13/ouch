@@ -6,6 +6,34 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-25
+
+**Every 2026 estimate changes.** The 2026 federal tax data was a copy of the pre-OBBBA 2025 file. It's now rebuilt from Rev. Proc. 2025-32 and current law (rtrimble13/ouch#22). Some typical 2026 federal totals:
+
+| 2026 profile | Before | After | Change |
+|---|---|---|---|
+| Single, wages $100,000 | $13,614 | $13,170 | −$444 |
+| MFJ, wages $200,000, two children | $23,228 | $21,940 | −$1,288 |
+| MFJ, wages $400,000, $50,000 SALT, $30,000 mortgage interest | $73,444 | $65,650 | −$7,794 |
+| Single, Schedule C profit $200,000 | $61,177 | $61,580 | +$404 (higher wage base) |
+
+The file still ships `verified: false`. These 2026 provisions aren't modelled yet: the dependent care credit's new 50% rate schedule (the credit is understated for lower-income filers), the charitable 0.5% floor and non-itemizer deduction, the 5.4% limit on itemized deductions in the top bracket, the QBI minimum deduction, and the tips, overtime and car-loan interest deductions.
+
+### Changed
+
+- 2026 brackets, 0%/15% capital-gain breakpoints, standard deduction ($16,100 single, $32,200 joint, $24,150 head of household) and age-65/blind amounts ($2,050 unmarried, $1,650 married).
+- 2026 SALT cap $40,400 ($20,200 MFS), reduced by 30% of MAGI over $505,000 ($252,500 MFS), down to $10,000 ($5,000 MFS).
+- 2026 Social Security wage base $184,500; child tax credit $2,200 per child; the EITC table; saver's credit income limits; 2026 IRS underpayment interest rates.
+- 2026 AMT exemption ($90,100 unmarried, $140,200 joint) phases out at **50%** above $500,000 ($1,000,000 joint), up from 25% above $626,350. More high earners will owe AMT.
+- 2026 QBI thresholds ($201,750; $403,500 joint) and the wider phase-in range ($75,000; $150,000 joint).
+- The unverified-data warning reads "Federal tax data for 2026 is unverified", without "(projected)".
+
+### Fixed
+
+- A qualifying surviving spouse no longer gets amounts the law reserves for joint returns: the EITC phase-out start, the education credit income range, and the saver's credit limits (all years). In the 2026 data, also the Additional Medicare threshold ($200,000, not $250,000) and the CTC phase-out ($200,000, not $400,000). Affected surviving spouses see a smaller credit or higher tax.
+- Married filing separately reaches the 28% AMT rate at half the joint breakpoint ($122,250 in 2026) when the data file gives one.
+- The EITC at exactly the earned income amount is the published maximum (e.g. $4,427 in 2026, not $4,426.80).
+
 ## [0.1.0] - 2026-11-25
 
 The first tagged release. It covers the work merged before versioning began: specification milestones M1 to M5, the defect fixes that followed review, the SALT cap phase-down engine (rtrimble13/ouch#20), and the 2025–2028 senior deduction (rtrimble13/ouch#21).

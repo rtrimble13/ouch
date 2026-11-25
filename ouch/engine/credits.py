@@ -58,8 +58,14 @@ def plateau(earned: Money, agi: Money, phase_in_rate: Decimal,
             plateau_start: Money, phaseout_start: Money,
             phaseout_rate: Decimal, max_credit: Money) -> Money:
     """EITC-style trapezoid: phase in on earned income, plateau, phase out on
-    the greater of earned income and AGI."""
-    grown = minm(earned * phase_in_rate, max_credit)
+    the greater of earned income and AGI.
+
+    At or above ``plateau_start`` (the "earned income amount") the credit is
+    the published maximum, which the IRS rounds: 34% × $13,020 is $4,426.80,
+    but the 2026 maximum is $4,427 (Rev. Proc. 2025-32 §4.06).
+    """
+    grown = (max_credit if earned >= plateau_start
+             else minm(earned * phase_in_rate, max_credit))
     basis = maxm(earned, agi)
     if basis <= phaseout_start:
         return grown
@@ -180,10 +186,12 @@ def earned_income_credit(inp: TaxInput, agi: Money, earned_income: Money,
             max(t.children for t in eitc.by_children))
     tier = next(t for t in eitc.by_children if t.children == n)
 
+    # The higher threshold is for "married taxpayers filing a joint return"
+    # (§32(b)(2)(B); Rev. Proc. 2025-32 §4.06). A qualifying surviving spouse
+    # doesn't file one, so uses the other-status amount.
     phaseout_start = Money(
         tier.phaseout_start_mfj
-        if status in (FilingStatus.MARRIED_FILING_JOINTLY,
-                      FilingStatus.QUALIFYING_SURVIVING_SPOUSE)
+        if status == FilingStatus.MARRIED_FILING_JOINTLY
         else tier.phaseout_start_other)
 
     credit = plateau(
@@ -231,8 +239,9 @@ def dependent_care_credit(inp: TaxInput, agi: Money, earned_income: Money,
 
 def _education_phaseout_fraction(agi: Money, status: FilingStatus,
                                  phaseout) -> Decimal:
-    mfj = status in (FilingStatus.MARRIED_FILING_JOINTLY,
-                     FilingStatus.QUALIFYING_SURVIVING_SPOUSE)
+    # "$160,000 and $180,000 if you file a joint return" (Form 8863
+    # instructions): a qualifying surviving spouse uses the other range.
+    mfj = status == FilingStatus.MARRIED_FILING_JOINTLY
     start = Money(phaseout.mfj_start if mfj else phaseout.other_start)
     end = Money(phaseout.mfj_end if mfj else phaseout.other_end)
     if agi <= start:
@@ -296,8 +305,9 @@ def savers_credit(inp: TaxInput, agi: Money, fed: FederalData) -> Money:
         return ZERO
     status = inp.taxpayer.filing_status
     for tier in sc.tiers:  # ascending AGI ceilings, descending rates
-        if status in (FilingStatus.MARRIED_FILING_JOINTLY,
-                      FilingStatus.QUALIFYING_SURVIVING_SPOUSE):
+        # Form 8880's table groups a qualifying surviving spouse with
+        # single and MFS; only a joint return uses the MFJ column.
+        if status == FilingStatus.MARRIED_FILING_JOINTLY:
             ceiling = tier.mfj_up_to
         elif status == FilingStatus.HEAD_OF_HOUSEHOLD:
             ceiling = tier.hoh_up_to
