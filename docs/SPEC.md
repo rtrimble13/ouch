@@ -1093,7 +1093,8 @@ iteration, not by guessing. The pipeline is:
  4. Taxable Social Security (iterative — depends on AGI, feeds AGI)
  5. Adjusted Gross Income
  6. Deduction: standard vs. itemized (needs state tax estimate → §9.9 loop)
- 7. QBI deduction (needs taxable income before QBI)
+6b. Schedule 1-A additional deductions (1040 line 13b; below AGI, any mode)
+ 7. QBI deduction (needs taxable income before QBI, after 6 and 6b)
  8. Taxable income
  9. Federal tax: preferential stacking algorithm (§9.4)
 10. AMT parallel computation; add excess over regular tax
@@ -1231,6 +1232,17 @@ under §§911, 931 and 933; ouch has no inputs for those exclusions, so v1 uses
 AGI. AGI does not depend on itemized deductions, so the phase-down adds no
 circularity to the §9.9 SALT loop. Inside the band each dollar of MAGI also
 removes `rate` dollars of deduction, which `scenario sweep` reports as a cliff.
+
+**Schedule 1-A deductions** (2025–2028) are claimed on top of either the
+standard or itemized deduction and flow to Form 1040 line 13b. Each lives in
+its own `schedule_1a.<name>` data section, present only in the years the
+provision is in force. The **enhanced deduction for seniors** (Part V) is
+`max(0, amount − phaseout_rate × max(0, MAGI − threshold[status]))` for each
+qualifying person: the taxpayer, and the spouse on a joint return, each if
+treated as 65 by year end (born before January 2 of year − 64; you reach an
+age the day before the birthday). Married filers must file jointly. MAGI is
+AGI plus the Puerto Rico, Form 2555 and Form 4563 exclusions; v1 uses AGI.
+The valid-SSN requirement has no input, so a warning says it is assumed.
 
 **Mortgage interest limitation**: deductible portion =
 `interest × min(1, acquisition_limit / average_balance)`, using the

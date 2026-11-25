@@ -38,6 +38,9 @@ def render_summary(result: TaxResult, status: FilingStatus, state: str,
     lines.append(_row("Adjusted gross income", result.agi))
     lines.append(_row(f"Deduction ({result.deduction_mode})",
                       -result.deduction_taken))
+    if result.schedule_1a_deduction > ZERO:
+        lines.append(_row("Schedule 1-A deductions",
+                          -result.schedule_1a_deduction))
     if result.qbi_deduction > ZERO:
         lines.append(_row("QBI deduction", -result.qbi_deduction))
     lines.append(_row("Taxable income", result.taxable_income))

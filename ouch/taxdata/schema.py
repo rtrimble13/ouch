@@ -299,6 +299,36 @@ class SpecialRateGroups(_Model):
     collectibles: Decimal
 
 
+class SeniorDeduction(_Model):
+    """Enhanced deduction for seniors (Schedule 1-A Part V; 2025–2028).
+
+    Each qualifying individual gets ``amount`` less ``phaseout_rate`` ×
+    (MAGI − ``phaseout_threshold[status]``), floored at zero. Married
+    filers must file jointly to claim it.
+    """
+    amount: Decimal = Field(gt=0)            # per qualifying individual
+    min_age: int = Field(default=65, gt=0)
+    phaseout_threshold: StatusAmount
+    phaseout_rate: Decimal = Field(gt=0, le=1)
+
+    @field_validator("phaseout_threshold")
+    @classmethod
+    def _all_statuses(cls, v: StatusAmount) -> StatusAmount:
+        missing = [s.value for s in FilingStatus if s not in v]
+        if missing:
+            raise ValueError(f"phaseout_threshold missing {', '.join(missing)}")
+        return v
+
+
+class Schedule1A(_Model):
+    """Additional deductions claimed on Schedule 1-A (Form 1040 line 13b).
+
+    A section's presence means the provision is in force for the file's
+    year; absence means it is not (no year checks in the engine).
+    """
+    senior: Optional[SeniorDeduction] = None
+
+
 class FederalData(_Model):
     meta: Meta
     ordinary_brackets: StatusBrackets
@@ -314,6 +344,7 @@ class FederalData(_Model):
     credits: Credits
     estimated_payments: EstimatedPaymentsData
     social_security_taxability: SocialSecurityTaxability
+    schedule_1a: Optional[Schedule1A] = None
 
     @field_validator("ordinary_brackets", "preferential_brackets")
     @classmethod

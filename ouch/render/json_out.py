@@ -26,6 +26,7 @@ def result_to_dict(result: TaxResult) -> dict[str, Any]:
         "deduction_taken": _m(result.deduction_taken),
         "deduction_mode": result.deduction_mode,
         "qbi_deduction": _m(result.qbi_deduction),
+        "schedule_1a_deduction": _m(result.schedule_1a_deduction),
         "taxable_income": _m(result.taxable_income),
         "tax_ordinary": _m(result.tax_ordinary),
         "tax_preferential": _m(result.tax_preferential),

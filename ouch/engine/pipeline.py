@@ -13,7 +13,8 @@ from decimal import Decimal
 from ouch.engine import setax
 from ouch.engine.credits import compute_credits
 from ouch.engine.deductions import (ItemizedResult, itemized_deduction,
-                                    qbi_deduction, standard_deduction)
+                                    qbi_deduction, senior_deduction,
+                                    standard_deduction)
 from ouch.engine.federal import amt_additional, federal_income_tax
 from ouch.engine.income import net_capital
 from ouch.engine.payments import project_payments, safe_harbor
@@ -52,6 +53,7 @@ class _FederalPass:
     itemized: ItemizedResult
     standard_amount: Money
     qbi: Money
+    schedule_1a: Money
     taxable_income: Money
     tax_ordinary: Money
     tax_preferential: Money
@@ -276,8 +278,35 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                       f"${(-crossover).round_dollar().amount:,.0f}",)
                      if mode == "standard" and itemized.total > ZERO else ()))
 
+    # 6b. Schedule 1-A additional deductions (1040 line 13b) -----------------
+    # Below AGI and available whether or not the filer itemizes.
+    senior = senior_deduction(inp, agi, fed)  # MAGI = AGI (no exclusion inputs)
+    warnings.extend(senior.warnings)
+    schedule_1a = senior.deduction
+    if senior.deduction > ZERO:
+        sec = fed.schedule_1a.senior  # type: ignore[union-attr]
+        tb.add("fed.deduction.senior", "Enhanced deduction for seniors",
+               senior.deduction, jurisdiction="federal",
+               rule=(f"${sec.amount:,.0f} less "
+                     f"{(sec.phaseout_rate * 100).normalize():f}% of MAGI over "
+                     f"${sec.phaseout_threshold[status]:,.0f} = "
+                     f"${senior.per_person.round_dollar().amount:,.0f} × "
+                     f"{senior.qualifying} qualifying "
+                     f"{'person' if senior.qualifying == 1 else 'people'} "
+                     f"aged {sec.min_age}+; MAGI taken as AGI"),
+               form_ref="Schedule 1-A Part V", authority="P.L. 119-21 (OBBBA)",
+               inputs=("fed.agi",), warnings=senior.warnings)
+    if schedule_1a > ZERO:
+        tb.add("fed.schedule_1a", "Schedule 1-A additional deductions",
+               schedule_1a, jurisdiction="federal",
+               rule="sum of Schedule 1-A deductions",
+               form_ref="1040 line 13b", authority="Schedule 1-A Part VI",
+               inputs=("fed.deduction.senior",))
+
     # 7. QBI deduction -------------------------------------------------------
-    taxable_before_qbi = maxm(ZERO, agi - deduction)
+    # Form 8995 taxable income before QBI is after the line 12 and line 13b
+    # deductions.
+    taxable_before_qbi = maxm(ZERO, agi - deduction - schedule_1a)
     qbi = qbi_deduction(inp, taxable_before_qbi, pref_income,
                         se.se_deduction, se_health, fed)
     if qbi.deduction > ZERO:
@@ -293,9 +322,12 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     # 8. Taxable income ------------------------------------------------------
     taxable_income = maxm(ZERO, taxable_before_qbi - qbi.deduction)
     tb.add("fed.taxable", "Taxable income", taxable_income,
-           jurisdiction="federal", rule="AGI less deduction less QBI",
+           jurisdiction="federal",
+           rule=("AGI less deduction less Schedule 1-A less QBI"
+                 if schedule_1a > ZERO else "AGI less deduction less QBI"),
            form_ref="1040 line 15", authority="IRC §63",
            inputs=("fed.agi", "fed.deduction")
+           + (("fed.schedule_1a",) if schedule_1a > ZERO else ())
            + (("fed.qbi",) if qbi.deduction > ZERO else ()))
     if taxable_income < ZERO:
         raise InvariantError("taxable income is negative")
@@ -444,7 +476,8 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         tb=tb, total_income=total_income, agi=agi,
         adjustments_total=adjustments_total, deduction=deduction,
         deduction_mode=mode, itemized=itemized, standard_amount=std,
-        qbi=qbi.deduction, taxable_income=taxable_income,
+        qbi=qbi.deduction, schedule_1a=schedule_1a,
+        taxable_income=taxable_income,
         tax_ordinary=tax.ordinary, tax_preferential=tax.preferential,
         tax_special=tax.special, amt_add=amt_add,
         se_tax=se.se_tax, se_deduction=se.se_deduction,
@@ -663,6 +696,7 @@ def run(inp: TaxInput, data: ResolvedData, *,
         deduction_taken=fp.deduction,
         deduction_mode=fp.deduction_mode,  # type: ignore[arg-type]
         qbi_deduction=fp.qbi,
+        schedule_1a_deduction=fp.schedule_1a,
         taxable_income=fp.taxable_income,
         tax_ordinary=fp.tax_ordinary,
         tax_preferential=fp.tax_preferential + fp.tax_special,

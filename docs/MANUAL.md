@@ -825,7 +825,7 @@ tax_year       = 2026
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `name` | string | `""` | Never transmitted to the AI; strip it if you like |
-| `birth_date` | date | — | Drives age-65 additional deduction and dependent-care tests |
+| `birth_date` | date | — | Drives the age-65 additional standard deduction, the 2025–2028 enhanced deduction for seniors, and dependent-care tests |
 | `blind` | bool | `false` | Additional standard deduction |
 | `filing_status` | enum | `single` | `single`, `married_filing_jointly`, `married_filing_separately`, `head_of_household`, `qualifying_surviving_spouse` |
 | `state` | string | `""` | Two-letter code; empty means federal only |
@@ -1438,7 +1438,8 @@ Federal ordinary and preferential rate stacking (including the 25% unrecaptured
 §1250 and 28% collectibles groups), self-employment tax with W-2 wage-base
 coordination, the SE and SE-health above-the-line deductions, iterative taxable
 Social Security, standard vs itemized with SALT-cap convergence and the
-high-income SALT cap phase-down (wherever the year's data file defines one), QBI (§199A)
+high-income SALT cap phase-down (wherever the year's data file defines one), the
+Schedule 1-A enhanced deduction for seniors (2025–2028), QBI (§199A)
 with the wage/UBIA limitation, a simplified AMT plus the Form 8801 credit
 carryforward, Additional Medicare, NIIT, the statutory capital-loss netting
 order with carryforward, and the ordered credit cascade: child and dependent
