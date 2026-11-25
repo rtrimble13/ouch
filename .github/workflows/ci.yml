@@ -1,0 +1,80 @@
+# Checks every pull request and every push to main.
+# The same checks run locally with `make check` (see docs/versioning-and-releases.md).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install ouch with dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run the test suite (incl. golden fixtures)
+        run: python -m pytest -q
+
+      - name: Validate shipped tax data
+        run: ouch data validate
+
+  release-checks:
+    name: Version and package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history and tags: the version gate diffs against the base branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install build tooling
+        run: python -m pip install "build>=1.2"
+
+      - name: Validate version, pyproject wiring and changelog
+        run: python scripts/relkit.py validate
+
+      - name: Require a version bump and changelog entry for shipped changes
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python scripts/relkit.py check-versions --base "origin/${BASE_REF}"
+
+      - name: Build the sdist and wheel
+        run: python scripts/relkit.py package
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ouch-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,59 @@
+# Publishes a GitHub release when the package version on main has no tag yet.
+#
+# A release happens when __version__ in ouch/__init__.py changes on main.
+# The tag is v<version>, and the release carries the sdist, the wheel, their
+# SHA-256 checksums, and the matching CHANGELOG.md section as notes.
+# See docs/versioning-and-releases.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ouch/**"
+      - "pyproject.toml"
+      - "CHANGELOG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never run two releases at once; never cancel one half-way.
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release the new version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history and tags, so an already-released version is recognized.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install ouch with dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run the test suite
+        run: python -m pytest -q
+
+      - name: Validate shipped tax data
+        run: ouch data validate
+
+      - name: Show the release plan
+        run: python scripts/relkit.py release --dry-run
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/relkit.py release

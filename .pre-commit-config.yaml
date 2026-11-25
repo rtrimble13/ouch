@@ -1,0 +1,18 @@
+# Install once with `make install` (or `pre-commit install --install-hooks -t pre-commit -t pre-push`).
+# Run everything by hand with `pre-commit run --all-files`.
+repos:
+  - repo: local
+    hooks:
+      - id: relkit-validate
+        name: validate version and changelog
+        entry: python scripts/relkit.py validate
+        language: system
+        pass_filenames: false
+        files: ^(ouch/__init__\.py|pyproject\.toml|CHANGELOG\.md)$
+      - id: relkit-check-versions
+        name: require a version bump for shipped changes
+        entry: python scripts/relkit.py check-versions --base origin/main
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

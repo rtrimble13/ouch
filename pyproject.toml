@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ouch"
-version = "0.1.0"
+dynamic = ["version"]  # single source: ouch/__init__.py (docs/versioning-and-releases.md)
 description = "A CPA-grade personal tax estimation CLI"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -25,10 +25,14 @@ ai = ["anthropic", "keyring"]
 crypto = ["cryptography", "keyring"]
 harvest = ["pandas"]
 all = ["ouch[pdf,ocr,ai,crypto,harvest]"]
-dev = ["pytest>=8", "hypothesis>=6", "reportlab>=4", "ouch[pdf]"]
+dev = ["pytest>=8", "hypothesis>=6", "reportlab>=4", "build>=1.2", "pre-commit>=4",
+       "ouch[pdf]"]
 
 [project.scripts]
 ouch = "ouch.cli.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "ouch.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["ouch*"]

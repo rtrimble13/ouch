@@ -70,6 +70,10 @@ on-device model endpoints, the TUI.
   [vignette 1](docs/vignettes/01-first-estimate.md).
 - **[Specification](docs/SPEC.md)** — the design document the implementation
   follows.
+- **[Changelog](CHANGELOG.md)** and **[versioning and releases](docs/versioning-and-releases.md)**
+  — what changed in each version, what a version bump promises, and how
+  releases are published.
+- **[Contributing](CONTRIBUTING.md)** — workflow and standards for tax content.
 
 ## Install
 
@@ -79,11 +83,15 @@ Requires Python 3.11+.
 python3 -m venv ~/.venvs/ouch
 source ~/.venvs/ouch/bin/activate
 pip install --upgrade pip
-pip install .              # from a clone; PyPI publication TBD
+pip install .              # from a clone, or a release wheel (see below)
 
 ouch --version
 ouch init                  # interactive first-run setup
 ```
+
+Each [GitHub release](https://github.com/rtrimble13/ouch/releases) attaches a
+wheel and an sdist with SHA-256 checksums; `pip install ouch-<version>-py3-none-any.whl`
+installs it. ouch isn't published to PyPI.
 
 Development install:
 
@@ -93,6 +101,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest                     # full suite incl. golden fixtures
 ouch data validate         # schema-check shipped tax data
+make check                 # everything CI runs, incl. the version gate
 ```
 
 ## Quick start
