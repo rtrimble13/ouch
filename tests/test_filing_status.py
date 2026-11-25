@@ -55,18 +55,19 @@ def test_married_profiles_are_refused():
 
 
 def test_hoh_beats_single_hand_computed(data_federal_only):
-    """2025, wages 85,000, one child:
-    single: taxable 70,000 → 1,192.50 + 4,386 + 22%×21,525 = 10,314 − 2,000
-            CTC = 8,314
-    HoH:    taxable 62,500 → 10%×17,000 + 12%×45,500 = 7,160 − 2,000 = 5,160"""
+    """2025, wages 85,000, one child (standard deduction 15,750 / 23,625;
+    CTC 2,200):
+    single: taxable 69,250 → 1,192.50 + 4,386 + 22%×20,775 = 10,149 − 2,200
+            CTC = 7,949
+    HoH:    taxable 61,375 → 10%×17,000 + 12%×44,375 = 7,025 − 2,200 = 4,825"""
     inp = make_input(dependents=[CHILD],
                      income={"wages": {"taxpayer_w2": "85000"}})
     single = pipeline.run(with_status(inp, FS.SINGLE), data_federal_only,
                           compute_marginals=False)
     hoh = pipeline.run(with_status(inp, FS.HEAD_OF_HOUSEHOLD),
                        data_federal_only, compute_marginals=False)
-    assert single.federal_total_tax.round_cent() == Money("8314.00")
-    assert hoh.federal_total_tax.round_cent() == Money("5160.00")
+    assert single.federal_total_tax.round_cent() == Money("7949.00")
+    assert hoh.federal_total_tax.round_cent() == Money("4825.00")
 
 
 PROFILE = """\
@@ -97,7 +98,8 @@ def test_cli_compare_table(tmp_path):
     r = _cli(tmp_path, "single", "estimate", "--compare-filing-status")
     assert r.returncode == 0, r.stderr
     assert "Head of household" in r.stdout and "(current)" in r.stdout
-    assert "Lowest total tax: Head of household — $ 3,154 less" in r.stdout
+    # 7,949 − 4,825 (see test_hoh_beats_single_hand_computed)
+    assert "Lowest total tax: Head of household — $ 3,124 less" in r.stdout
     assert "Surviving spouse not computed" in r.stdout
     # The output is not a plain estimate (the original bug).
     plain = _cli(tmp_path, "single", "estimate")
@@ -112,7 +114,7 @@ def test_cli_compare_json(tmp_path):
     assert doc["current_filing_status"] == "single"
     assert [c["filing_status"] for c in doc["comparison"]] == [
         "single", "head_of_household"]
-    assert doc["comparison"][1]["result"]["federal_total_tax"] == "5160.00"
+    assert doc["comparison"][1]["result"]["federal_total_tax"] == "4825.00"
     assert doc["omitted"][0]["filing_status"] == "qualifying_surviving_spouse"
 
 

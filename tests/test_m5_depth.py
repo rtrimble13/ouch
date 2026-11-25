@@ -17,9 +17,9 @@ from tests.conftest import make_input
 
 
 def test_amt_credit_used_up_to_headroom(data_federal_only):
-    """Single, 100k wages: taxable 85,000; regular tax 13,614.
-    AMTI = 85,000 + 15,000 std = 100,000; exemption 88,100 → base 11,900
-    × 26% = TMT 3,094. Headroom = 13,614 − 3,094 = 10,520.
+    """Single, 100k wages: taxable 84,250; regular tax 13,449.
+    AMTI = 84,250 + 15,750 std = 100,000; exemption 88,100 → base 11,900
+    × 26% = TMT 3,094. Headroom = 13,449 − 3,094 = 10,355.
     A 5,000 carryover is fully usable: total drops by exactly 5,000."""
     base = make_input(income={"wages": {"taxpayer_w2": "100000"}})
     with_credit = make_input(income={"wages": {"taxpayer_w2": "100000"}},
@@ -31,12 +31,12 @@ def test_amt_credit_used_up_to_headroom(data_federal_only):
 
 
 def test_amt_credit_limited_by_headroom(data_federal_only):
-    """A 50,000 carryover exceeds the 10,520 headroom → only 10,520 used,
+    """A 50,000 carryover exceeds the 10,355 headroom → only 10,355 used,
     remainder carried forward with a warning."""
     inp = make_input(income={"wages": {"taxpayer_w2": "100000"}},
                      carryovers={"amt_credit": "50000"})
     r = pipeline.run(inp, data_federal_only, compute_marginals=False)
-    assert r.trace.get("fed.credits.amt").amount == Money(10_520)
+    assert r.trace.get("fed.credits.amt").amount == Money(10_355)
     assert any("carryforward remaining" in w for w in r.warnings)
 
 
@@ -98,15 +98,15 @@ def test_annualized_fractions_must_sum_to_one():
 
 
 def test_colorado_flat_on_federal_taxable(data_federal_only):
-    """CO: 4.4% of federal taxable income. 100k wages → 85,000 × 4.4%
-    = 3,740."""
+    """CO: 4.4% of federal taxable income. 100k wages → 84,250 × 4.4%
+    = 3,707."""
     data = pipeline.ResolvedData(federal=data_federal_only.federal,
                                  state=loader.load_state("CO", 2025))
     r = pipeline.run(make_input(
         taxpayer={"filing_status": "single", "state": "CO"},
         income={"wages": {"taxpayer_w2": "100000"}}), data,
         compute_marginals=False)
-    assert r.state.tax == Money(3_740)
+    assert r.state.tax == Money(3_707)
 
 
 def test_california_progressive(data_federal_only):

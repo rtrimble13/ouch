@@ -85,11 +85,17 @@ def test_salt_cap_phasedown(status, magi, expected):
     assert cap == Money(expected)
 
 
-def test_no_phasedown_is_the_flat_cap(federal_2025):
-    """Shipped data without a phase-down section keeps the flat cap."""
-    flat = federal_2025.itemized.salt_cap
+def test_no_phasedown_is_the_flat_cap():
+    """A data file without a phase-down section (as before 2025) keeps the
+    flat cap at any income."""
+    flat = SaltCap.model_validate({"amount": 10_000, "mfs_amount": 5_000})
     assert flat.phasedown is None
-    assert salt_cap(MFJ, Money(5_000_000), flat) == Money(flat.amount)
+    assert salt_cap(MFJ, Money(5_000_000), flat) == Money(10_000)
+    assert salt_cap(MFS, Money(5_000_000), flat) == Money(5_000)
+
+
+def test_shipped_2025_file_carries_the_phasedown(federal_2025):
+    assert federal_2025.itemized.salt_cap == SaltCap.model_validate(SALT_2025)
 
 
 # ----- itemized deduction and the pipeline -----------------------------------
@@ -127,7 +133,7 @@ def test_salt_below_reduced_cap_is_not_capped(fed_obbba):
 
 def test_pipeline_uses_reduced_cap_and_traces_it(data_obbba):
     """MFJ, wages 550,000 (AGI 550,000), SALT 50,000, mortgage interest
-    20,000. Cap 25,000 → itemized 45,000 > standard 30,000.
+    20,000. Cap 25,000 → itemized 45,000 > standard 31,500.
     Taxable 505,000."""
     inp = _mfj_itemizer(550_000, mortgage_interest="20000")
     r = pipeline.run(inp, data_obbba, compute_marginals=False)
@@ -165,24 +171,25 @@ def test_salt_loop_settles_under_reduced_cap(fed_obbba, federal_2025):
 # ----- marginal rates: the band is a cliff -----------------------------------
 
 def test_sweep_flags_phasedown_band_as_cliff(data_obbba):
-    """MFJ, SALT 50,000 + mortgage 20,000, AUTO deduction, wages swept
-    450k → 650k in 50k steps. 2025 MFJ brackets: 24% to 394,600 (tax there
-    80,398), 32% to 501,050 (114,462), then 35%. Additional Medicare 0.9%
-    over 250,000 applies at every point.
+    """MFJ, SALT 50,000 + mortgage 25,000, AUTO deduction, wages swept
+    450k → 650k in 50k steps. Itemizing beats the 31,500 standard deduction
+    at every point (even at the 10,000 SALT floor: 35,000). 2025 MFJ
+    brackets: 24% from 206,700 (tax there 35,302), 32% from 394,600
+    (80,398), 35% from 501,050 (114,462). Additional Medicare 0.9% over
+    250,000 applies at every point.
 
-    wages  deduction        taxable   income tax    + Add'l Medicare  total
-    450k   itemized 60,000  390,000    79,294.00    1,800             81,094.00
-    500k   itemized 60,000  440,000    94,926.00    2,250             97,176.00
-    550k   itemized 45,000  505,000   115,844.50    2,700            118,544.50
-    600k   standard 30,000  570,000   138,594.50    3,150            141,744.50
-    650k   standard 30,000  620,000   156,094.50    3,600            159,694.50
+    wages  itemized        taxable   income tax    + Add'l Medicare  total
+    450k   65,000          385,000    78,094.00    1,800             79,894.00
+    500k   65,000          435,000    93,326.00    2,250             95,576.00
+    550k   50,000 (25k)    500,000   114,126.00    2,700            116,826.00
+    600k   35,000 (10k)    565,000   136,844.50    3,150            139,994.50
+    650k   35,000          615,000   154,344.50    3,600            157,944.50
 
-    Step marginals (the runner rounds to 4 places): 0.3216, 0.4274
-    (21,368.50 / 50,000), 0.464, 0.359. The two steps inside the
-    phase-down band (500k→600k) add 30% × the bracket rate on top of it
-    (fully in band: 35% × 1.3 + 0.9% = 46.4%); the cliff flag fires on
-    entering the band and again on the all-35% in-band step, and the rate
-    falls back once the floor is reached.
+    Step marginals (the runner rounds to 4 places): 0.3136, 0.425, 0.4634
+    (23,168.50 / 50,000), 0.359. The two steps inside the phase-down band
+    (500k→600k) add 30% × the bracket rate on top of it; the cliff flag
+    fires on entering the band and again on the mostly-35% in-band step,
+    and the rate falls back once the floor is reached.
     """
     base = {
         "tax_year": 2025,
@@ -190,7 +197,7 @@ def test_sweep_flags_phasedown_band_as_cliff(data_obbba):
         "income": {"wages": {"taxpayer_w2": 450_000}},
         "deductions": {"itemized": {"state_local_income_tax": 35_000,
                                     "real_estate_tax": 15_000,
-                                    "mortgage_interest": 20_000}},
+                                    "mortgage_interest": 25_000}},
     }
     points = runner.sweep(
         base, "income.wages.taxpayer_w2",
@@ -198,8 +205,8 @@ def test_sweep_flags_phasedown_band_as_cliff(data_obbba):
         ["total_tax_all_jurisdictions"], data_obbba,
         lambda raw: build_tax_input(raw, 2025))
     marginals = [p.step_marginal for p in points[1:]]
-    assert marginals == [Decimal("0.3216"), Decimal("0.4274"),
-                         Decimal("0.464"), Decimal("0.359")]
+    assert marginals == [Decimal("0.3136"), Decimal("0.425"),
+                         Decimal("0.4634"), Decimal("0.359")]
     assert [p.value for p in points if p.cliff] == [Decimal(550_000),
                                                      Decimal(600_000)]
 

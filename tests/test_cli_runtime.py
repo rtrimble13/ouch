@@ -160,10 +160,10 @@ def _state_tax(r: subprocess.CompletedProcess) -> str:
 
 def test_config_taxdata_path_is_searched(tmp_path: Path):
     """CO's 2025 file applies its flat rate to federal taxable income
-    (100,000 − 15,000 = 85,000): at 5%, OR tax = 4,250."""
+    (100,000 − 15,750 = 84,250): at 5%, OR tax = 4,212.50."""
     data = _taxdata_dir(tmp_path / "alt", "0.05")
     r = _run(tmp_path, f'[taxdata]\npath = "{data}"\n')
-    assert _state_tax(r) == "4250.00"
+    assert _state_tax(r) == "4212.50"
 
 
 def test_env_taxdata_outranks_config(tmp_path: Path):
@@ -171,7 +171,7 @@ def test_env_taxdata_outranks_config(tmp_path: Path):
     env_dir = _taxdata_dir(tmp_path / "from-env", "0.10")
     r = _run(tmp_path, f'[taxdata]\npath = "{cfg_dir}"\n',
              {"OUCH_TAXDATA": str(env_dir)})
-    assert _state_tax(r) == "8500.00"
+    assert _state_tax(r) == "8425.00"  # 10% × 84,250
 
 
 def test_missing_taxdata_path_fails_loudly(tmp_path: Path):

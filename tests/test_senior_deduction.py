@@ -10,8 +10,8 @@ Rules from Schedule 1-A (Form 1040) (2025), Part V:
 Part VI line 38 carries it to Form 1040 line 13b: below AGI, for itemizers
 and non-itemizers alike.
 
-Hand computations use the shipped 2025 file: standard deduction 15,000
-single / 30,000 MFJ; additional age-65 amount 2,000 single / 1,600 married;
+Hand computations use the shipped 2025 file: standard deduction 15,750
+single / 31,500 MFJ (Rev. Proc. 2025-32 §3.01); additional age-65 amount 2,000 single / 1,600 married;
 single brackets 10% to 11,925, 12% to 48,475, 22% to 103,350; MFJ 10% to
 23,850, 12% to 96,950.
 """
@@ -43,25 +43,25 @@ def _run(data, status="single", wages="60000", birth=SENIOR, spouse=None,
 
 def test_single_70_below_threshold_full_6000(data_federal_only):
     """Wages 60,000 = MAGI, below 75,000 → 6,000.
-    taxable = 60,000 − (15,000 + 2,000) − 6,000 = 37,000
-    tax = 1,192.50 + 12% × 25,075 (3,009.00) = 4,201.50"""
+    taxable = 60,000 − (15,750 + 2,000) − 6,000 = 36,250
+    tax = 1,192.50 + 12% × 24,325 (2,919.00) = 4,111.50"""
     r = _run(data_federal_only)
     assert r.schedule_1a_deduction == Money(6_000)
-    assert r.deduction_taken == Money(17_000)  # line 12 is unchanged
+    assert r.deduction_taken == Money(17_750)  # line 12 is unchanged
     assert r.agi == Money(60_000)              # below the line: AGI unchanged
-    assert r.taxable_income == Money(37_000)
-    assert r.federal_total_tax.round_cent() == Money("4201.50")
+    assert r.taxable_income == Money(36_250)
+    assert r.federal_total_tax.round_cent() == Money("4111.50")
 
 
 def test_mfj_both_65_plus_12000(data_federal_only):
     """Wages 100,000, MAGI below 150,000 → 2 × 6,000.
-    taxable = 100,000 − (30,000 + 2 × 1,600) − 12,000 = 54,800
-    tax = 2,385.00 + 12% × 30,950 (3,714.00) = 6,099.00"""
+    taxable = 100,000 − (31,500 + 2 × 1,600) − 12,000 = 53,300
+    tax = 2,385.00 + 12% × 29,450 (3,534.00) = 5,919.00"""
     r = _run(data_federal_only, status="married_filing_jointly",
              wages="100000", spouse="1958-07-04")
     assert r.schedule_1a_deduction == Money(12_000)
-    assert r.taxable_income == Money(54_800)
-    assert r.federal_total_tax.round_cent() == Money("6099.00")
+    assert r.taxable_income == Money(53_300)
+    assert r.federal_total_tax.round_cent() == Money("5919.00")
 
 
 def test_mfj_one_spouse_qualifies(data_federal_only):
@@ -72,12 +72,12 @@ def test_mfj_one_spouse_qualifies(data_federal_only):
 
 def test_single_in_phaseout_band(data_federal_only):
     """MAGI 100,000: 6% × 25,000 = 1,500 → 4,500.
-    taxable = 100,000 − 17,000 − 4,500 = 78,500
-    tax = 1,192.50 + 4,386.00 + 22% × 30,025 (6,605.50) = 12,184.00"""
+    taxable = 100,000 − 17,750 − 4,500 = 77,750
+    tax = 1,192.50 + 4,386.00 + 22% × 29,275 (6,440.50) = 12,019.00"""
     r = _run(data_federal_only, wages="100000")
     assert r.schedule_1a_deduction == Money(4_500)
-    assert r.taxable_income == Money(78_500)
-    assert r.federal_total_tax.round_cent() == Money("12184.00")
+    assert r.taxable_income == Money(77_750)
+    assert r.federal_total_tax.round_cent() == Money("12019.00")
     assert "6% of MAGI over $75,000" in r.trace.get("fed.deduction.senior").rule
 
 
@@ -171,14 +171,14 @@ def test_trace_lines_and_taxable_inputs(data_federal_only):
 
 def test_qbi_limit_measured_after_schedule_1a(data_federal_only):
     """Single, 70, wages 40,000, QBI 50,000 (no SE income).
-    Taxable before QBI = 40,000 − 17,000 − 6,000 = 17,000; the overall
-    limit 20% × 17,000 = 3,400 binds against 20% × 50,000 = 10,000.
-    (Without the senior deduction the limit would be 4,600.)"""
+    Taxable before QBI = 40,000 − 17,750 − 6,000 = 16,250; the overall
+    limit 20% × 16,250 = 3,250 binds against 20% × 50,000 = 10,000.
+    (Without the senior deduction the limit would be 4,450.)"""
     r = _run(data_federal_only, wages="40000",
              income={"business": {"qbi_eligible_income": "50000"}})
     assert r.schedule_1a_deduction == Money(6_000)
-    assert r.qbi_deduction == Money(3_400)
-    assert r.taxable_income == Money(13_600)
+    assert r.qbi_deduction == Money(3_250)
+    assert r.taxable_income == Money(13_000)
 
 
 def test_absent_section_means_not_in_force(federal_2025):
@@ -214,8 +214,8 @@ def test_schema_requires_every_status_threshold():
 
 
 @pytest.mark.parametrize("birth, standard", [
-    ("1961-01-01", 17_000),  # treated as 65 on Dec 31, 2025: 15,000 + 2,000
-    ("1961-01-02", 15_000),  # still 64
+    ("1961-01-01", 17_750),  # treated as 65 on Dec 31, 2025: 15,750 + 2,000
+    ("1961-01-02", 15_750),  # still 64
 ])
 def test_additional_standard_deduction_uses_the_same_age_rule(
         data_federal_only, birth, standard):
