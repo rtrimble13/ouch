@@ -29,8 +29,9 @@ def standard_deduction(inp: TaxInput, fed: FederalData) -> Money:
     if inp.spouse is not None and status in _MARRIED:
         people.append(inp.spouse)
     for person in people:
-        age = inp.age_at_year_end(person.birth_date)
-        if age is not None and age >= 65:
+        # "Born before January 2, 1961" for 2025: you reach 65 the day
+        # before your 65th birthday, so a January 1 birthday counts.
+        if inp.reaches_age_by_year_end(person.birth_date, 65):
             total += add_65
         if person.blind:
             total += add_blind

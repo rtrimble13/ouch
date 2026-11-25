@@ -211,3 +211,15 @@ def test_schema_requires_every_status_threshold():
             "amount": 6000, "phaseout_rate": "0.06",
             "phaseout_threshold": {"single": 75000,
                                    "married_filing_jointly": 150000}})
+
+
+@pytest.mark.parametrize("birth, standard", [
+    ("1961-01-01", 17_000),  # treated as 65 on Dec 31, 2025: 15,000 + 2,000
+    ("1961-01-02", 15_000),  # still 64
+])
+def test_additional_standard_deduction_uses_the_same_age_rule(
+        data_federal_only, birth, standard):
+    """Form 1040 (2025): the age-65 box is "born before January 2, 1961".
+    Calendar age said 64 for a January 1, 1961 birthday."""
+    r = _run(data_federal_only, birth=birth)
+    assert r.deduction_taken == Money(standard)
