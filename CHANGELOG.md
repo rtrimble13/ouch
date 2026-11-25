@@ -8,7 +8,7 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [0.1.0] - 2026-11-25
 
-The first tagged release. It covers the work merged before versioning began: specification milestones M1 to M5, the defect fixes that followed review, and the SALT cap phase-down engine (rtrimble13/ouch#20).
+The first tagged release. It covers the work merged before versioning began: specification milestones M1 to M5, the defect fixes that followed review, the SALT cap phase-down engine (rtrimble13/ouch#20), and the 2025–2028 senior deduction (rtrimble13/ouch#21).
 
 Tax data for 2025 and 2026 predates the One Big Beautiful Bill Act (P.L. 119-21) and ships `verified: false`. Estimates computed from it are under superseded law; rtrimble13/ouch#19 tracks the update.
 
@@ -21,9 +21,11 @@ Tax data for 2025 and 2026 predates the One Big Beautiful Bill Act (P.L. 119-21)
 - **Depth (M5):** the full credit suite (EITC, child and dependent care, AOTC, LLC, saver's), part-year residency, the AMT credit carryforward, `ouch withhold estimates [--annualized]`, and CA, CO, MA, FL and WA data.
 - `estimate --compare-filing-status`.
 - The SALT cap phase-down for high-income itemizers (IRC §164(b)(7)): a typed `salt_cap.phasedown` section in the tax-data schema, and an engine that reduces the cap by the phase-down rate above the MAGI threshold, down to the floor. No shipped data file uses it yet, so no estimate changes.
+- The 2025–2028 enhanced deduction for seniors (Schedule 1-A Part V): $6,000 per person aged 65 or older, less 6% of MAGI over $75,000 ($150,000 joint), claimed on top of the standard or itemized deduction. Married filers must file jointly. Shown as `schedule_1a_deduction` in the summary, JSON output and `--compare-filing-status`.
 
 ### Fixed
 
+- A filer born on January 1 now counts as 65 at the end of the year before their 65th birthday, matching Form 1040's "born before January 2" test, so they get the additional age-65 standard deduction that calendar age denied them.
 - Additional Medicare tax uses uncapped Medicare wages, not Social Security wages.
 - Schedule C losses reduce total income and AGI.
 - SE tax is coordinated against the business owner's own Social Security wage base.
