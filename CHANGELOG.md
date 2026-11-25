@@ -6,6 +6,30 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-25
+
+**Every 2025 estimate changes.** The 2025 federal data reflected Rev. Proc. 2024-40 before OBBBA. It now has the law as enacted for 2025 (rtrimble13/ouch#27), and every other figure was re-checked against Rev. Proc. 2024-40 and the 2025 forms. Some typical 2025 federal totals:
+
+| 2025 profile | Before | After | Change |
+|---|---|---|---|
+| Single, wages $100,000 | $13,614 | $13,449 | −$165 |
+| MFJ, wages $200,000, two children | $23,228 | $22,498 | −$730 |
+| MFJ, wages $400,000, $50,000 SALT, $30,000 mortgage interest | $73,444 | $66,244 | −$7,200 |
+
+The file still ships `verified: false`, because the Schedule 1-A tips, overtime and car-loan interest deductions (2025–2028) aren't modelled yet.
+
+### Changed
+
+- 2025 standard deduction $15,750 single and MFS, $31,500 joint and surviving spouse, $23,625 head of household (Rev. Proc. 2025-32 §3.01).
+- 2025 SALT cap $40,000 ($20,000 MFS), reduced by 30% of MAGI over $500,000 ($250,000 MFS), down to $10,000 ($5,000 MFS).
+- 2025 child tax credit $2,200 per child.
+- 2025 underpayment interest rate 7% in every quarter (was 8%), and the second estimated payment is due June 16, 2025 (June 15 was a Sunday).
+
+### Fixed
+
+- 2025 data for a qualifying surviving spouse: the Additional Medicare threshold is $200,000 (not $250,000), the CTC phase-out $200,000 (not $400,000), and the QBI threshold $197,300 with a $50,000 phase-in range (not the joint amounts).
+- Married filing separately reaches the 28% AMT rate at $119,550 in 2025, half the joint breakpoint.
+
 ## [0.2.0] - 2026-11-25
 
 **Every 2026 estimate changes.** The 2026 federal tax data was a copy of the pre-OBBBA 2025 file. It's now rebuilt from Rev. Proc. 2025-32 and current law (rtrimble13/ouch#22). Some typical 2026 federal totals:
