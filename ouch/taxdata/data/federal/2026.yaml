@@ -12,6 +12,8 @@ meta:
     - "PROJECTED from 2025 figures — replace with the 2026 Rev. Proc."
     - "IRC §1, §63, §199A, §1411, §1401, §3101"
     - "SSA 2025 wage base announcement"
+    - "Schedule 1-A (Form 1040) (2025), Part V — enhanced deduction for seniors"
+    - "IRS OBBBA provisions page — senior deduction effective 2025 through 2028, $6,000"
   notes: >
     Placeholder values carried forward from 2025; not published 2026 figures.
     Recent legislation may have changed SALT cap, senior deduction, QBI, and
@@ -258,3 +260,17 @@ social_security_taxability:
     head_of_household: 34_000
     qualifying_surviving_spouse: 34_000
   max_inclusion: 0.85
+
+# Schedule 1-A additional deductions (Form 1040 line 13b). Each section is
+# present only for the years its provision is in force (2025–2028).
+schedule_1a:
+  senior:                      # Part V, lines 31–37
+    amount: 6_000              # per qualifying individual (born before Jan 2 of year − 64)
+    min_age: 65
+    phaseout_threshold:        # line 32: MAGI
+      single: 75_000
+      married_filing_jointly: 150_000
+      married_filing_separately: 75_000   # not claimable: joint return required
+      head_of_household: 75_000
+      qualifying_surviving_spouse: 75_000
+    phaseout_rate: 0.06        # line 34

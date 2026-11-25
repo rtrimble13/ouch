@@ -258,6 +258,20 @@ class TaxInput(_Frozen):
         canon = self.model_dump_json()
         return "sha256:" + hashlib.sha256(canon.encode()).hexdigest()
 
+    def reaches_age_by_year_end(self, birth_date: Optional[date],
+                                age: int) -> bool:
+        """True if a person born on ``birth_date`` is treated as ``age`` or
+        older at the end of the tax year.
+
+        You are considered to reach an age on the day before the birthday
+        (Pub 501), so for age 65 in 2025 the test is "born before
+        January 2, 1961", as on Form 1040's age checkbox and Schedule 1-A
+        (2025) line 36. A missing birth date never qualifies.
+        """
+        if birth_date is None:
+            return False
+        return birth_date < date(self.tax_year - age + 1, 1, 2)
+
     def age_at_year_end(self, birth_date: Optional[date]) -> Optional[int]:
         if birth_date is None:
             return None

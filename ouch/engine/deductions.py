@@ -38,6 +38,48 @@ def standard_deduction(inp: TaxInput, fed: FederalData) -> Money:
 
 
 @dataclass(frozen=True)
+class SeniorResult:
+    deduction: Money
+    per_person: Money        # each qualifying individual's amount after phase-out
+    qualifying: int          # people who meet the age test and may claim
+    warnings: tuple[str, ...] = ()
+
+
+def senior_deduction(inp: TaxInput, magi: Money, fed: FederalData) -> SeniorResult:
+    """Enhanced deduction for seniors — Schedule 1-A (2025) Part V.
+
+    Lines 31–35: $6,000 less 6% of MAGI over $75,000 ($150,000 MFJ), not
+    below zero. Lines 36a–37: that amount once for the taxpayer and once
+    for a joint-return spouse, each if born before January 2 of the year
+    they turn 65. Married filers must file jointly to claim it.
+
+    MAGI (Part I) is AGI plus excluded Puerto Rico income and the Form
+    2555 / 4563 exclusions; ouch has no inputs for those, so callers pass
+    AGI. The valid-SSN requirement has no profile input and is assumed met.
+    """
+    section = fed.schedule_1a.senior if fed.schedule_1a else None
+    if section is None:
+        return SeniorResult(ZERO, ZERO, 0)
+    status = inp.taxpayer.filing_status
+    people = [inp.taxpayer]
+    if status == FilingStatus.MARRIED_FILING_JOINTLY and inp.spouse is not None:
+        people.append(inp.spouse)
+    seniors = sum(1 for p in people
+                  if inp.reaches_age_by_year_end(p.birth_date, section.min_age))
+    if seniors == 0:
+        return SeniorResult(ZERO, ZERO, 0)
+    if status == FilingStatus.MARRIED_FILING_SEPARATELY:
+        return SeniorResult(ZERO, ZERO, 0, (
+            "the enhanced deduction for seniors requires a joint return if "
+            "married; none allowed when filing separately",))
+    excess = maxm(ZERO, magi - Money(section.phaseout_threshold[status]))
+    per_person = maxm(ZERO, Money(section.amount) - excess * section.phaseout_rate)
+    warnings = ("enhanced deduction for seniors assumes each qualifying "
+                "person has a valid Social Security number",)
+    return SeniorResult(per_person * seniors, per_person, seniors, warnings)
+
+
+@dataclass(frozen=True)
 class ItemizedResult:
     total: Money
     medical: Money

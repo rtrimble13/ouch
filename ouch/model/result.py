@@ -157,6 +157,7 @@ class TaxResult:
     deduction_taken: Money
     deduction_mode: Literal["standard", "itemized"]
     qbi_deduction: Money
+    schedule_1a_deduction: Money         # 1040 line 13b (senior, tips, …)
     taxable_income: Money
     tax_ordinary: Money
     tax_preferential: Money
