@@ -8,7 +8,7 @@ from decimal import Decimal
 from ouch.model.enums import DeductionMode, FilingStatus
 from ouch.model.input import TaxInput
 from ouch.model.money import Money, ZERO, maxm, minm
-from ouch.taxdata.schema import FederalData
+from ouch.taxdata.schema import FederalData, SaltCap
 
 _MARRIED = {
     FilingStatus.MARRIED_FILING_JOINTLY,
@@ -87,10 +87,32 @@ class ItemizedResult:
     salt: Money
     salt_income_component: Money  # the state/local income tax actually deducted
     salt_capped: bool
+    salt_cap: Money          # the cap in force, after any phase-down
+    salt_cap_reduced: bool   # True when the high-income phase-down lowered it
     mortgage_interest: Money
     charitable: Money
     investment_interest: Money
     other: Money
+
+
+def salt_cap(status: FilingStatus, magi: Money, rules: SaltCap) -> Money:
+    """The SALT cap in force for this return (IRC §164(b)(6)–(7)).
+
+    With a phase-down (2025 onward), the cap is reduced by ``rate`` × the
+    excess of modified AGI over the threshold, but not below the floor —
+    Schedule A instructions, State and Local Tax Deduction Worksheet lines
+    5–9. Married filing separately uses the halved cap, threshold and floor.
+
+    MAGI for this purpose is AGI increased by income excluded under
+    §§911, 931 and 933 (foreign earned income, possessions, Puerto Rico).
+    ouch has no inputs for those exclusions, so callers pass AGI.
+    """
+    cap = Money(rules.for_status(status))
+    pd = rules.phasedown
+    if pd is None:
+        return cap
+    excess = maxm(ZERO, magi - Money(pd.threshold.for_status(status)))
+    return maxm(Money(pd.floor.for_status(status)), cap - excess * pd.rate)
 
 
 def itemized_deduction(inp: TaxInput, agi: Money, salt_income_estimate: Money,
@@ -108,9 +130,8 @@ def itemized_deduction(inp: TaxInput, agi: Money, salt_income_estimate: Money,
                    if it.state_local_income_tax > 0 else salt_income_estimate)
     salt_income = maxm(salt_income, ZERO)
     salt_total = salt_income + Money(it.real_estate_tax) + Money(it.personal_property_tax)
-    cap = Money(rules.salt_cap.mfs_amount
-                if status == FilingStatus.MARRIED_FILING_SEPARATELY
-                else rules.salt_cap.amount)
+    full_cap = Money(rules.salt_cap.for_status(status))
+    cap = salt_cap(status, agi, rules.salt_cap)  # MAGI = AGI (no §911/931/933 inputs)
     salt = minm(salt_total, cap)
     salt_capped = salt_total > cap
     # Portion of the deduction attributable to income tax (for state addbacks):
@@ -136,6 +157,7 @@ def itemized_deduction(inp: TaxInput, agi: Money, salt_income_estimate: Money,
     return ItemizedResult(
         total=total, medical=medical, salt=salt,
         salt_income_component=salt_income_deducted, salt_capped=salt_capped,
+        salt_cap=cap, salt_cap_reduced=cap < full_cap,
         mortgage_interest=mortgage, charitable=charitable,
         investment_interest=inv_interest, other=Money(it.other),
     )

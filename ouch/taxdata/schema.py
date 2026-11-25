@@ -9,7 +9,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (BaseModel, ConfigDict, Field, field_validator,
+                      model_validator)
 
 from ouch.model.enums import FilingStatus, StateRegime, StartingPoint
 
@@ -83,10 +84,38 @@ class StandardDeduction(_Model):
         return getattr(self, status.value)
 
 
-class SaltCap(_Model):
-    amount: Decimal
-    mfs_amount: Decimal
-    phasedown: Optional[dict] = None
+class SaltAmount(_Model):
+    """A SALT figure with its married-filing-separately counterpart."""
+    amount: Decimal = Field(ge=0)
+    mfs_amount: Decimal = Field(ge=0)
+
+    def for_status(self, status: FilingStatus) -> Decimal:
+        return (self.mfs_amount if status == FilingStatus.MARRIED_FILING_SEPARATELY
+                else self.amount)
+
+
+class SaltPhasedown(_Model):
+    """High-income reduction of the SALT cap (IRC §164(b)(7), from 2025).
+
+    The cap is reduced by ``rate`` × (MAGI − ``threshold``), but never below
+    ``floor``.
+    """
+    threshold: SaltAmount
+    rate: Decimal = Field(gt=0, le=1)
+    floor: SaltAmount
+
+
+class SaltCap(SaltAmount):
+    phasedown: Optional[SaltPhasedown] = None
+
+    @model_validator(mode="after")
+    def _floor_within_cap(self) -> "SaltCap":
+        pd = self.phasedown
+        if pd is not None and (pd.floor.amount > self.amount
+                               or pd.floor.mfs_amount > self.mfs_amount):
+            raise ValueError("salt_cap.phasedown.floor exceeds the cap it "
+                             "reduces")
+        return self
 
 
 class CharitableLimits(_Model):

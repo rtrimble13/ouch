@@ -657,7 +657,11 @@ itemized:
   salt_cap:
     amount: 10_000
     mfs_amount: 5_000
-    phasedown: null            # populate if a phase-down applies
+    phasedown: null            # or, when a phase-down applies (2025 on):
+    # phasedown:
+    #   threshold: {amount: 500_000, mfs_amount: 250_000}   # MAGI
+    #   rate: 0.30                 # cap reduced by rate × (MAGI − threshold)
+    #   floor: {amount: 10_000, mfs_amount: 5_000}          # never below
   medical_agi_floor: 0.075
   mortgage_acquisition_limit: 750_000
   mortgage_grandfathered_limit: 1_000_000
@@ -1206,7 +1210,8 @@ standard = base[status]
          (+ any statutory add-ons defined in the data file for the year)
 
 itemized = medical_over_floor
-         + min(SALT_total, salt_cap)          # SALT = income-or-sales + RE + PP
+         + min(SALT_total, salt_cap)          # SALT = income-or-sales + RE + PP;
+                                               # cap after any phase-down (below)
          + qualified_mortgage_interest         # limited by acquisition debt
          + charitable (subject to AGI % limits by donation type)
          + investment_interest (limited to net investment income)
@@ -1218,6 +1223,15 @@ mode = "itemized" if itemized > standard else "standard"     # unless forced
 The engine reports the *crossover*: how much additional deductible spending
 would make itemizing worthwhile, or how much itemizing beats the standard
 deduction by. That number drives real decisions (bunching charitable gifts).
+
+**SALT cap phase-down** (IRC §164(b)(7), 2025 onward): when the data file
+carries `salt_cap.phasedown`,
+`salt_cap = max(floor, cap − rate × max(0, MAGI − threshold))`, with the
+married-filing-separately amounts for MFS. MAGI is AGI plus income excluded
+under §§911, 931 and 933; ouch has no inputs for those exclusions, so v1 uses
+AGI. AGI does not depend on itemized deductions, so the phase-down adds no
+circularity to the §9.9 SALT loop. Inside the band each dollar of MAGI also
+removes `rate` dollars of deduction, which `scenario sweep` reports as a cliff.
 
 **Schedule 1-A deductions** (2025–2028) are claimed on top of either the
 standard or itemized deduction and flow to Form 1040 line 13b. Each lives in

@@ -256,12 +256,22 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     else:
         mode, deduction = "standard", std
     crossover = itemized.total - std
+    salt_note = ""
+    if itemized.salt_cap_reduced:
+        sc = fed.itemized.salt_cap
+        assert sc.phasedown is not None
+        salt_note = (
+            f"; SALT cap ${itemized.salt_cap.round_dollar().amount:,.0f} "
+            f"(${sc.for_status(status):,.0f} less "
+            f"{(sc.phasedown.rate * 100).normalize():f}% of MAGI over "
+            f"${sc.phasedown.threshold.for_status(status):,.0f}, floor "
+            f"${sc.phasedown.floor.for_status(status):,.0f})")
     tb.add("fed.deduction", f"Deduction ({mode})", deduction,
            jurisdiction="federal",
            rule=(f"max(standard ${std.round_dollar().amount:,.0f}, itemized "
                  f"${itemized.total.round_dollar().amount:,.0f})"
                  if mode_setting == DeductionMode.AUTO
-                 else f"forced {mode}"),
+                 else f"forced {mode}") + salt_note,
            form_ref="1040 line 12", authority="IRC §63",
            inputs=("fed.agi",),
            warnings=((f"itemizing trails the standard deduction by "
