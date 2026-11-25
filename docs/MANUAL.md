@@ -1437,7 +1437,8 @@ on them.
 Federal ordinary and preferential rate stacking (including the 25% unrecaptured
 §1250 and 28% collectibles groups), self-employment tax with W-2 wage-base
 coordination, the SE and SE-health above-the-line deductions, iterative taxable
-Social Security, standard vs itemized with SALT-cap convergence, QBI (§199A)
+Social Security, standard vs itemized with SALT-cap convergence and the
+high-income SALT cap phase-down (wherever the year's data file defines one), QBI (§199A)
 with the wage/UBIA limitation, a simplified AMT plus the Form 8801 credit
 carryforward, Additional Medicare, NIIT, the statutory capital-loss netting
 order with carryforward, and the ordered credit cascade: child and dependent
@@ -1456,6 +1457,7 @@ itemization, and part-year allocation by residency-month ratio.
 | AMT | approximate | Only the standard-deduction and SALT addbacks are modeled; ISO bargain elements and other preferences are not |
 | Part-year state | approximate | A residency-month ratio, not each state's own allocation schedule |
 | Wash sales | approximate | Exact-symbol matches only; cross-issuer "substantially identical" is a legal judgment the tool will not make |
+| SALT cap phase-down | exact, except | MAGI is taken as AGI: income excluded under §§911/931/933 (foreign earned income, possessions, Puerto Rico) has no profile input |
 | Underpayment penalty | heuristic | A Form 2210 approximation |
 | EITC | approximate | Residency/SSN/age-25-65 tests for childless claimants are not modeled |
 | Saver's credit | approximate | Student and dependent exclusions, and recent-distribution offsets, are not modeled |
