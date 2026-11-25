@@ -635,7 +635,7 @@ def run(inp: TaxInput, data: ResolvedData, *,
 
     # Warnings (§15.4) -------------------------------------------------------
     if not fed.meta.verified:
-        warnings.append(f"Tax data for {inp.tax_year} is unverified (projected)")
+        warnings.append(f"Federal tax data for {inp.tax_year} is unverified")
     if data.state is not None and not data.state.meta.verified:
         warnings.append(f"State tax data ({data.state.meta.jurisdiction} "
                         f"{inp.tax_year}) is unverified")

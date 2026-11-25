@@ -1,127 +1,145 @@
-# Federal tax data — 2026. PROJECTED / ILLUSTRATIVE PLACEHOLDERS.
-# 2026 inflation adjustments were not verified when this file was authored;
-# values are carried from the 2025 file as placeholders (spec §6.1). Ships
-# `verified: false`; every result computed from it is stamped with a
-# projection warning. Replace with figures from the 2026 Revenue Procedure.
+# Federal tax data — 2026, rebuilt from Rev. Proc. 2025-32 and current law
+# (P.L. 119-21, "OBBBA"). Each section cites its source in a comment; the
+# full list is in meta.source.
+#
+# Still `verified: false`: some 2026 law isn't representable yet, so those
+# parameters stay at their pre-2026 values (see meta.notes):
+#   - child and dependent care credit: 2026 rate schedule (rtrimble13/ouch#25)
+#   - charitable 0.5% floor, non-itemizer deduction, §68 limit (rtrimble13/ouch#24)
+#   - QBI minimum deduction (rtrimble13/ouch#25)
+#   - Schedule 1-A tips, overtime, car-loan interest (rtrimble13/ouch#26)
 meta:
   jurisdiction: US
   year: 2026
   schema_version: 3
   verified: false
   source:
-    - "PROJECTED from 2025 figures — replace with the 2026 Rev. Proc."
-    - "IRC §1, §63, §199A, §1411, §1401, §3101"
-    - "SSA 2025 wage base announcement"
-    - "Schedule 1-A (Form 1040) (2025), Part V — enhanced deduction for seniors"
-    - "IRS OBBBA provisions page — senior deduction effective 2025 through 2028, $6,000"
+    - "Rev. Proc. 2025-32 §4.01 (rate tables), .02 (dependent standard deduction), .03 (0%/15% maximums), .05 (CTC), .06 (EITC), .10 (AMT), .14 (standard deduction), .26 (QBI)"
+    - "Rev. Proc. 2025-32 §2.07: OBBBA §70107, AMT $1,000,000 phase-out threshold not indexed before 2027"
+    - "2026 Form 1040-ES, What's New: additional age-65/blind amounts, $184,500 social security maximum, $1,700 ACTC, QBI phase-in ranges"
+    - "Pub 505 (2026): SALT cap $40,400 ($20,200 MFS), MAGI threshold $505,000, floor $10,000 ($5,000 MFS); estimated-tax due dates; safe harbors"
+    - "Instructions for Schedule A (Form 1040) (2025), State and Local Tax Deduction Worksheet line 7: 30% phase-down rate"
+    - "IRS quarterly interest rates page: 2026 individual underpayment rates (IRB 2025-48, 2026-8, 2026-22, 2026-36)"
+    - "Schedule 1-A (Form 1040) (2025), Part V; IRS OBBBA provisions page: senior deduction 2025 through 2028"
+    - "2026 Schedule 8812 (CTC, ODC, phase-out, refundable portion); Notice 2025-67 and 2026 Form 8880 (saver's credit)"
+    - "Instructions for Forms 8959 and 8960, Form 8863, Schedule D; Pubs 502, 526, 915, 936 (statutory, unindexed amounts)"
   notes: >
-    Placeholder values carried forward from 2025; not published 2026 figures.
-    Recent legislation may have changed SALT cap, senior deduction, QBI, and
-    other parameters — verify every figure before marking verified.
+    Rebuilt from 2026 primary sources. Parameters for provisions the engine
+    can't model yet stay at their pre-2026 values: the dependent care credit
+    (2026 50% maximum rate, rtrimble13/ouch#25), the charitable 0.5% floor,
+    non-itemizer deduction and §68 limitation (rtrimble13/ouch#24), the QBI
+    minimum deduction (rtrimble13/ouch#25), and the Schedule 1-A tips,
+    overtime and car-loan deductions (rtrimble13/ouch#26). The file stays
+    unverified until those land.
 
-ordinary_brackets:
+ordinary_brackets:            # Rev. Proc. 2025-32 §4.01, Tables 1–4
   single:
-    - {up_to: 11_925,   rate: 0.10}
-    - {up_to: 48_475,   rate: 0.12}
-    - {up_to: 103_350,  rate: 0.22}
-    - {up_to: 197_300,  rate: 0.24}
-    - {up_to: 250_525,  rate: 0.32}
-    - {up_to: 626_350,  rate: 0.35}
+    - {up_to: 12_400,   rate: 0.10}
+    - {up_to: 50_400,   rate: 0.12}
+    - {up_to: 105_700,  rate: 0.22}
+    - {up_to: 201_775,  rate: 0.24}
+    - {up_to: 256_225,  rate: 0.32}
+    - {up_to: 640_600,  rate: 0.35}
     - {up_to: null,     rate: 0.37}
   married_filing_jointly:
-    - {up_to: 23_850,   rate: 0.10}
-    - {up_to: 96_950,   rate: 0.12}
-    - {up_to: 206_700,  rate: 0.22}
-    - {up_to: 394_600,  rate: 0.24}
-    - {up_to: 501_050,  rate: 0.32}
-    - {up_to: 751_600,  rate: 0.35}
+    - {up_to: 24_800,   rate: 0.10}
+    - {up_to: 100_800,  rate: 0.12}
+    - {up_to: 211_400,  rate: 0.22}
+    - {up_to: 403_550,  rate: 0.24}
+    - {up_to: 512_450,  rate: 0.32}
+    - {up_to: 768_700,  rate: 0.35}
     - {up_to: null,     rate: 0.37}
   married_filing_separately:
-    - {up_to: 11_925,   rate: 0.10}
-    - {up_to: 48_475,   rate: 0.12}
-    - {up_to: 103_350,  rate: 0.22}
-    - {up_to: 197_300,  rate: 0.24}
-    - {up_to: 250_525,  rate: 0.32}
-    - {up_to: 375_800,  rate: 0.35}
+    - {up_to: 12_400,   rate: 0.10}
+    - {up_to: 50_400,   rate: 0.12}
+    - {up_to: 105_700,  rate: 0.22}
+    - {up_to: 201_775,  rate: 0.24}
+    - {up_to: 256_225,  rate: 0.32}
+    - {up_to: 384_350,  rate: 0.35}
     - {up_to: null,     rate: 0.37}
   head_of_household:
-    - {up_to: 17_000,   rate: 0.10}
-    - {up_to: 64_850,   rate: 0.12}
-    - {up_to: 103_350,  rate: 0.22}
-    - {up_to: 197_300,  rate: 0.24}
-    - {up_to: 250_500,  rate: 0.32}
-    - {up_to: 626_350,  rate: 0.35}
+    - {up_to: 17_700,   rate: 0.10}
+    - {up_to: 67_450,   rate: 0.12}
+    - {up_to: 105_700,  rate: 0.22}
+    - {up_to: 201_750,  rate: 0.24}
+    - {up_to: 256_200,  rate: 0.32}
+    - {up_to: 640_600,  rate: 0.35}
     - {up_to: null,     rate: 0.37}
-  qualifying_surviving_spouse:
-    - {up_to: 23_850,   rate: 0.10}
-    - {up_to: 96_950,   rate: 0.12}
-    - {up_to: 206_700,  rate: 0.22}
-    - {up_to: 394_600,  rate: 0.24}
-    - {up_to: 501_050,  rate: 0.32}
-    - {up_to: 751_600,  rate: 0.35}
+  qualifying_surviving_spouse:  # Table 1: joint returns and surviving spouses
+    - {up_to: 24_800,   rate: 0.10}
+    - {up_to: 100_800,  rate: 0.12}
+    - {up_to: 211_400,  rate: 0.22}
+    - {up_to: 403_550,  rate: 0.24}
+    - {up_to: 512_450,  rate: 0.32}
+    - {up_to: 768_700,  rate: 0.35}
     - {up_to: null,     rate: 0.37}
 
-preferential_brackets:
+preferential_brackets:        # Rev. Proc. 2025-32 §4.03 (maximum 0% / 15% rate amounts)
   single:
-    - {up_to: 48_350,  rate: 0.00}
-    - {up_to: 533_400, rate: 0.15}
+    - {up_to: 49_450,  rate: 0.00}
+    - {up_to: 545_500, rate: 0.15}
     - {up_to: null,    rate: 0.20}
   married_filing_jointly:
-    - {up_to: 96_700,  rate: 0.00}
-    - {up_to: 600_050, rate: 0.15}
+    - {up_to: 98_900,  rate: 0.00}
+    - {up_to: 613_700, rate: 0.15}
     - {up_to: null,    rate: 0.20}
   married_filing_separately:
-    - {up_to: 48_350,  rate: 0.00}
-    - {up_to: 300_000, rate: 0.15}
+    - {up_to: 49_450,  rate: 0.00}
+    - {up_to: 306_850, rate: 0.15}
     - {up_to: null,    rate: 0.20}
   head_of_household:
-    - {up_to: 64_750,  rate: 0.00}
-    - {up_to: 566_700, rate: 0.15}
+    - {up_to: 66_200,  rate: 0.00}
+    - {up_to: 579_600, rate: 0.15}
     - {up_to: null,    rate: 0.20}
   qualifying_surviving_spouse:
-    - {up_to: 96_700,  rate: 0.00}
-    - {up_to: 600_050, rate: 0.15}
+    - {up_to: 98_900,  rate: 0.00}
+    - {up_to: 613_700, rate: 0.15}
     - {up_to: null,    rate: 0.20}
 
-special_rate_groups:
+special_rate_groups:          # Schedule D instructions: 25% / 28% groups
   unrecaptured_1250: 0.25
   collectibles: 0.28
 
-standard_deduction:
-  single: 15_000
-  married_filing_jointly: 30_000
-  married_filing_separately: 15_000
-  head_of_household: 22_500
-  qualifying_surviving_spouse: 30_000
-  additional_age65: {single: 2_000, married: 1_600}
-  additional_blind: {single: 2_000, married: 1_600}
-  dependent_floor: 1_350
+standard_deduction:           # Rev. Proc. 2025-32 §4.14
+  single: 16_100
+  married_filing_jointly: 32_200
+  married_filing_separately: 16_100
+  head_of_household: 24_150
+  qualifying_surviving_spouse: 32_200
+  additional_age65: {single: 2_050, married: 1_650}   # §4.14(3); "single" = unmarried, not a surviving spouse
+  additional_blind: {single: 2_050, married: 1_650}
+  dependent_floor: 1_350                               # §4.14(2)
   dependent_earned_addon: 450
 
 itemized:
-  salt_cap:
-    amount: 10_000
-    mfs_amount: 5_000
-    phasedown: null
-  medical_agi_floor: 0.075
-  mortgage_acquisition_limit: 750_000
+  salt_cap:                    # Pub 505 (2026); rate from the Schedule A worksheet
+    amount: 40_400
+    mfs_amount: 20_200
+    phasedown:
+      threshold: {amount: 505_000, mfs_amount: 252_500}   # MAGI
+      rate: 0.30
+      floor: {amount: 10_000, mfs_amount: 5_000}
+  medical_agi_floor: 0.075     # Pub 502
+  mortgage_acquisition_limit: 750_000          # Pub 936 (2025); 2026 not separately confirmed
   mortgage_grandfathered_limit: 1_000_000
+  # Pub 526 (2025) limits. The 2026 0.5%-of-AGI floor and the non-itemizer
+  # deduction aren't modelled yet (rtrimble13/ouch#24).
   charitable_agi_limits: {cash: 0.60, noncash: 0.30, appreciated: 0.30}
 
-qbi:
+qbi:                          # Rev. Proc. 2025-32 §4.26
   rate: 0.20
-  threshold:
-    single: 197_300
-    married_filing_jointly: 394_600
-    married_filing_separately: 197_300
-    head_of_household: 197_300
-    qualifying_surviving_spouse: 394_600
-  phase_in_range:
-    single: 50_000
-    married_filing_jointly: 100_000
-    married_filing_separately: 50_000
-    head_of_household: 50_000
-    qualifying_surviving_spouse: 100_000
+  threshold:                  # "Married Individuals Filing Joint Returns"; QSS is "All Other Returns"
+    single: 201_750
+    married_filing_jointly: 403_500
+    married_filing_separately: 201_775
+    head_of_household: 201_750
+    qualifying_surviving_spouse: 201_750
+  phase_in_range:             # phase-in end less threshold (OBBBA §70105 widened it)
+    single: 75_000
+    married_filing_jointly: 150_000
+    married_filing_separately: 75_000
+    head_of_household: 75_000
+    qualifying_surviving_spouse: 75_000
   wage_limit_pct: 0.50
   wage_ubia_alt: {wage_pct: 0.25, ubia_pct: 0.025}
   sstb_disallowed_above_phasein: true
@@ -130,22 +148,22 @@ payroll:
   social_security:
     rate_employee: 0.062
     rate_self_employed: 0.124
-    wage_base: 176_100
+    wage_base: 184_500         # 2026 Form 1040-ES; Pub 505 (2026)
   medicare:
     rate_employee: 0.0145
     rate_self_employed: 0.029
-  additional_medicare:
+  additional_medicare:         # Form 8959 instructions: 0.9%; thresholds "aren't indexed for inflation"
     rate: 0.009
     threshold:
       single: 200_000
       married_filing_jointly: 250_000
       married_filing_separately: 125_000
       head_of_household: 200_000
-      qualifying_surviving_spouse: 250_000
+      qualifying_surviving_spouse: 200_000   # Form 8959 table; not the joint amount
   se_income_factor: 0.9235
   se_deduction_pct: 0.50
 
-niit:
+niit:                          # Form 8960 instructions: 3.8%; QSS uses the joint $250,000
   rate: 0.038
   threshold:
     single: 200_000
@@ -154,59 +172,71 @@ niit:
     head_of_household: 200_000
     qualifying_surviving_spouse: 250_000
 
-amt:
+amt:                          # Rev. Proc. 2025-32 §4.10
   exemption:
-    single: 88_100
-    married_filing_jointly: 137_000
-    married_filing_separately: 68_500
-    head_of_household: 88_100
-    qualifying_surviving_spouse: 137_000
-  phaseout_threshold:
-    single: 626_350
-    married_filing_jointly: 1_252_700
-    married_filing_separately: 626_350
-    head_of_household: 626_350
-    qualifying_surviving_spouse: 1_252_700
-  phaseout_rate: 0.25
+    single: 90_100            # "Unmarried Individuals (other than Surviving Spouses)"
+    married_filing_jointly: 140_200
+    married_filing_separately: 70_100
+    head_of_household: 90_100
+    qualifying_surviving_spouse: 140_200
+  phaseout_threshold:         # OBBBA §70107: back to $500,000 / $1,000,000, not indexed before 2027
+    single: 500_000
+    married_filing_jointly: 1_000_000
+    married_filing_separately: 500_000
+    head_of_household: 500_000
+    qualifying_surviving_spouse: 1_000_000
+  # 50%: each "Complete Phaseout Amount" in §4.10 is the threshold plus twice
+  # the exemption (e.g. 1,000,000 + 2 × 140,200 = 1,280,400).
+  phaseout_rate: 0.50
   brackets:
-    - {up_to: 239_100, rate: 0.26}
+    - {up_to: 244_500, rate: 0.26}
+    - {up_to: null,    rate: 0.28}
+  brackets_mfs:
+    - {up_to: 122_250, rate: 0.26}
     - {up_to: null,    rate: 0.28}
 
-capital_loss:
+capital_loss:                 # Schedule D instructions: $3,000 ($1,500 MFS)
   annual_ordinary_offset: 3_000
   mfs_offset: 1_500
 
 credits:
-  child_tax_credit:
-    amount_per_child: 2_000
-    refundable_cap: 1_700
+  child_tax_credit:            # 2026 Schedule 8812: $2,200, $500 ODC, 400k/200k, 5%, $1,700, $2,500, 15%, under 17
+    amount_per_child: 2_200     # Rev. Proc. 2025-32 §4.05(1)
+    refundable_cap: 1_700       # §4.05(2)
     phaseout_start:
       single: 200_000
       married_filing_jointly: 400_000
       married_filing_separately: 200_000
       head_of_household: 200_000
-      qualifying_surviving_spouse: 400_000
+      qualifying_surviving_spouse: 200_000   # "All other filing statuses"
     phaseout_rate_per_1000: 50
     qualifying_age_max: 16
     refundable_earned_income_floor: 2_500
     refundable_earned_income_pct: 0.15
   other_dependent_credit:
     amount: 500
-  eitc:
-    investment_income_limit: 11_950
+  eitc:                         # Rev. Proc. 2025-32 §4.06
+    investment_income_limit: 12_200
+    # The rates are statutory (§32(b)(1)); each matches the table:
+    # max credit = rate × earned income amount, and
+    # completed phaseout = threshold + max credit / phaseout rate.
     by_children:
-      - {children: 0, phase_in_rate: 0.0765, earned_income_amount: 8_490,
-         max_credit: 649, phaseout_start_mfj: 17_730,
-         phaseout_start_other: 10_620, phaseout_rate: 0.0765}
-      - {children: 1, phase_in_rate: 0.34, earned_income_amount: 12_730,
-         max_credit: 4_328, phaseout_start_mfj: 30_470,
-         phaseout_start_other: 23_350, phaseout_rate: 0.1598}
-      - {children: 2, phase_in_rate: 0.40, earned_income_amount: 17_880,
-         max_credit: 7_152, phaseout_start_mfj: 30_470,
-         phaseout_start_other: 23_350, phaseout_rate: 0.2106}
-      - {children: 3, phase_in_rate: 0.45, earned_income_amount: 17_880,
-         max_credit: 8_046, phaseout_start_mfj: 30_470,
-         phaseout_start_other: 23_350, phaseout_rate: 0.2106}
+      - {children: 0, phase_in_rate: 0.0765, earned_income_amount: 8_680,
+         max_credit: 664, phaseout_start_mfj: 18_140,
+         phaseout_start_other: 10_860, phaseout_rate: 0.0765}
+      - {children: 1, phase_in_rate: 0.34, earned_income_amount: 13_020,
+         max_credit: 4_427, phaseout_start_mfj: 31_160,
+         phaseout_start_other: 23_890, phaseout_rate: 0.1598}
+      - {children: 2, phase_in_rate: 0.40, earned_income_amount: 18_290,
+         max_credit: 7_316, phaseout_start_mfj: 31_160,
+         phaseout_start_other: 23_890, phaseout_rate: 0.2106}
+      - {children: 3, phase_in_rate: 0.45, earned_income_amount: 18_290,
+         max_credit: 8_231, phaseout_start_mfj: 31_160,
+         phaseout_start_other: 23_890, phaseout_rate: 0.2106}
+  # PRE-2026 SCHEDULE, NOT 2026 LAW. The 2026 credit's maximum rate is 50%
+  # (2026 Form 1040-ES, Pub 505), with a step-down schedule this schema
+  # can't express yet (rtrimble13/ouch#25). Until then the credit is
+  # understated for lower-AGI filers.
   child_dependent_care:
     max_expenses_one: 3_000
     max_expenses_two_plus: 6_000
@@ -217,7 +247,7 @@ credits:
     step_rate: 0.01
     qualifying_age_max: 12
   education:
-    aotc:
+    aotc:                       # Form 8863 instructions (statutory, not indexed)
       first_dollar: 2_000
       second_rate: 0.25
       second_cap: 2_000
@@ -229,24 +259,24 @@ credits:
       max_expenses: 10_000
       phaseout: {mfj_start: 160_000, mfj_end: 180_000,
                  other_start: 80_000, other_end: 90_000}
-  savers_credit:
+  savers_credit:                # Notice 2025-67; 2026 Form 8880 line 6 and line 9 table
     contribution_cap: 2_000
     tiers:
-      - {mfj_up_to: 47_500, hoh_up_to: 35_625, other_up_to: 23_750, rate: 0.50}
-      - {mfj_up_to: 51_000, hoh_up_to: 38_250, other_up_to: 25_500, rate: 0.20}
-      - {mfj_up_to: 79_000, hoh_up_to: 59_250, other_up_to: 39_500, rate: 0.10}
+      - {mfj_up_to: 48_500, hoh_up_to: 36_375, other_up_to: 24_250, rate: 0.50}
+      - {mfj_up_to: 52_500, hoh_up_to: 39_375, other_up_to: 26_250, rate: 0.20}
+      - {mfj_up_to: 80_500, hoh_up_to: 60_375, other_up_to: 40_250, rate: 0.10}
 
 estimated_payments:
-  safe_harbor:
+  safe_harbor:                 # Pub 505 (2026), 2026 Form 1040-ES
     current_year_pct: 0.90
     prior_year_pct: 1.00
     prior_year_pct_high_income: 1.10
     high_income_agi_threshold: 150_000
     high_income_agi_threshold_mfs: 75_000
-  due_dates: ["04-15", "06-15", "09-15", "01-15"]
-  underpayment_rate_by_quarter: [0.08, 0.08, 0.08, 0.08]
+  due_dates: ["04-15", "06-15", "09-15", "01-15"]     # Pub 505 (2026); 2026 Form 1040-ES
+  underpayment_rate_by_quarter: [0.07, 0.06, 0.07, 0.07] # calendar 2026 Q1–Q4, IRS quarterly interest rates
 
-social_security_taxability:
+social_security_taxability:   # Pub 915 (2026)
   base_amount:
     single: 25_000
     married_filing_jointly: 32_000
