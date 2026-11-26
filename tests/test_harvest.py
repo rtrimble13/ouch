@@ -248,15 +248,15 @@ def test_simulate_refuses_ira_and_unknown(data_federal_only):
 
 
 def test_zero_band_room(data_federal_only):
-    """Single, 40k wages → taxable 25,000; 0% band tops at 48,350 →
-    23,350 of gain-harvesting room."""
+    """Single, 40k wages → taxable 40,000 − 15,750 = 24,250; 0% band tops at
+    48,350 → 24,100 of gain-harvesting room."""
     low = {"tax_year": 2025,
            "taxpayer": {"filing_status": "single", "state": ""},
            "income": {"wages": {"taxpayer_w2": 40_000}}}
     result = ranker._run(low, data_federal_only, _build)
     room = ranker.zero_band_room(result, data_federal_only,
                                  FilingStatus.SINGLE)
-    assert room == Money(23_350)
+    assert room == Money(24_100)
 
 
 def test_holding_period_alerts():

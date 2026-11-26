@@ -98,7 +98,7 @@ def test_dependent_care_max_rate_low_agi(data_federal_only):
                          "relationship": "child"}],
             income={"wages": {"taxpayer_w2": "15000"}},
             expenses={"dependent_care": "2000"})
-    # taxable 0 (15,000 − 15,000 std) → liability 0 → credit fully clamped
+    # taxable 0 (15,000 − 15,750 std) → liability 0 → credit fully clamped
     assert not r.trace.has("fed.credits.care")
     assert any("lost to the liability limit" in w for w in r.warnings)
 
@@ -168,11 +168,12 @@ def test_savers_credit_10pct_tier_fully_used(data_federal_only):
 
 def test_savers_credit_clamped_by_liability(data_federal_only):
     """Wages 23,000 − 3,000 IRA = AGI 20,000 → 1,000 gross credit, but
-    taxable is only 5,000 → 500 of liability → 500 used, 500 lost."""
+    taxable is only 20,000 − 15,750 = 4,250 → 425 of liability → 425 used,
+    575 lost."""
     r = run(data_federal_only,
             income={"wages": {"taxpayer_w2": "23000"}},
             adjustments={"traditional_ira": "3000"})
-    assert r.trace.get("fed.credits.saver").amount == Money(500)
+    assert r.trace.get("fed.credits.saver").amount == Money(425)
     assert any("saver's credit lost" in w for w in r.warnings)
 
 
@@ -203,9 +204,9 @@ def test_nonrefundable_cascade_clamps_in_order(data_federal_only):
 
 def test_ctc_still_works_after_refactor(data_federal_only):
     """M1 behavior preserved through the orchestrator: 1 child, AGI 150k →
-    full 2,000 nonrefundable CTC."""
+    full 2,200 nonrefundable CTC (2025, OBBBA §70104)."""
     r = run(data_federal_only,
             dependents=[{"name": "k", "birth_date": "2016-02-01",
                          "relationship": "child"}],
             income={"wages": {"taxpayer_w2": "150000"}})
-    assert r.credits_nonrefundable == Money(2_000)
+    assert r.credits_nonrefundable == Money(2_200)

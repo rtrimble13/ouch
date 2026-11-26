@@ -66,9 +66,11 @@ def test_get_result_summary_registers_numbers(executor):
     result = executor.execute(ToolCall(id="t1", name="get_result_summary",
                                        input={}))
     payload = json.loads(result.content)
-    assert payload["taxable_income"] == "85000.00"
-    assert Decimal("85000.00") in executor.numbers
-    assert Decimal("13614.00") in executor.numbers  # federal total tax
+    # single, wages 100,000, 2025: taxable 100,000 − 15,750 = 84,250;
+    # tax 1,192.50 + 4,386.00 + 22% × 35,775 (7,870.50) = 13,449.00
+    assert payload["taxable_income"] == "84250.00"
+    assert Decimal("84250.00") in executor.numbers
+    assert Decimal("13449.00") in executor.numbers  # federal total tax
     assert executor.access_log == [("get_result_summary", {})]
 
 
@@ -96,8 +98,8 @@ def test_run_scenario_through_real_engine(executor):
                  input={"patch": {"income.retirement.roth_conversion":
                                   20_000}})).content)
     # 20k on top of 100k wages spans the 22/24 boundary: hand math
-    # taxable 85k→105k: 18,350@22% + 1,650@24% = 4,433
-    assert Decimal(payload["delta_total_tax"]) == Decimal("4433.00")
+    # taxable 84,250→104,250: 19,100@22% + 900@24% = 4,202 + 216 = 4,418
+    assert Decimal(payload["delta_total_tax"]) == Decimal("4418.00")
 
 
 def test_sweep_tool_caps_points(executor):
@@ -232,10 +234,10 @@ def _session(executor, script):
 def test_loop_executes_tools_then_answers(executor):
     session = _session(executor, [
         tool_response(ToolCall(id="c1", name="get_result_summary", input={})),
-        text_response("Your total tax is $13,614 [fed.tax.total]."),
+        text_response("Your total tax is $13,449 [fed.tax.total]."),
     ])
     text, warnings = session.ask("what do I owe?")
-    assert "$13,614" in text
+    assert "$13,449" in text
     assert warnings == []
     assert executor.access_log[0][0] == "get_result_summary"
     # Tool results were fed back as a user message
@@ -246,10 +248,10 @@ def test_ungrounded_answer_retried_then_accepted(executor):
     session = _session(executor, [
         tool_response(ToolCall(id="c1", name="get_result_summary", input={})),
         text_response("You owe $77,777."),                     # fabricated
-        text_response("You owe $13,614 [fed.tax.total]."),     # corrected
+        text_response("You owe $13,449 [fed.tax.total]."),     # corrected
     ])
     text, warnings = session.ask("what do I owe?")
-    assert "$13,614" in text and warnings == []
+    assert "$13,449" in text and warnings == []
     # The correction prompt was injected
     assert any("do not match any tool result" in str(m["content"])
                for m in session.messages if m["role"] == "user")

@@ -12,23 +12,24 @@ from tests.conftest import make_input
 
 
 def test_golden_single_tx_wages_only(data_federal_only):
-    """Hand computation (SOURCE: 2025 single brackets, std deduction 15,000):
-    wages 100,000 → taxable 85,000
-    10%×11,925 = 1,192.50 ; 12%×36,550 = 4,386.00 ; 22%×36,525 = 8,035.50
-    total = 13,614.00
+    """Hand computation (SOURCE: 2025 single brackets, Rev. Proc. 2024-40;
+    standard deduction 15,750, Rev. Proc. 2025-32 §3.01):
+    wages 100,000 → taxable 84,250
+    10%×11,925 = 1,192.50 ; 12%×36,550 = 4,386.00 ; 22%×35,775 = 7,870.50
+    total = 13,449.00
     """
     inp = make_input(income={"wages": {"taxpayer_w2": "100000"}})
     r = pipeline.run(inp, data_federal_only, compute_marginals=False)
-    assert r.taxable_income == Money(85_000)
-    assert r.federal_total_tax.round_cent() == Money("13614.00")
+    assert r.taxable_income == Money(84_250)
+    assert r.federal_total_tax.round_cent() == Money("13449.00")
     assert r.deduction_mode == "standard"
 
 
 def test_golden_pref_stacking_with_real_brackets(data_federal_only):
     """wages 142,000 + interest 850 + non-qual div 150 + QD 1,950 + LTCG 3,400
-    ordinary taxable = 148,350 − 15,000 − 5,350 = 128,000
-    tax: 1,192.50 + 4,386.00 + 22%×54,875 (=12,072.50) + 24%×24,650 (=5,916)
-       = 23,567.00 ; pref floor 128,000 > 48,350 → 15%×5,350 = 802.50
+    ordinary taxable = 148,350 − 15,750 − 5,350 = 127,250
+    tax: 1,192.50 + 4,386.00 + 22%×54,875 (=12,072.50) + 24%×23,900 (=5,736)
+       = 23,387.00 ; pref floor 127,250 > 48,350 → 15%×5,350 = 802.50
     """
     inp = make_input(income={
         "wages": {"taxpayer_w2": "142000"},
@@ -36,7 +37,7 @@ def test_golden_pref_stacking_with_real_brackets(data_federal_only):
                        "qualified_dividends": "1950",
                        "long_term_gains": "3400"}})
     r = pipeline.run(inp, data_federal_only, compute_marginals=False)
-    assert r.tax_ordinary.round_cent() == Money("23567.00")
+    assert r.tax_ordinary.round_cent() == Money("23387.00")
     assert r.tax_preferential.round_cent() == Money("802.50")
 
 
@@ -87,23 +88,24 @@ def test_salt_cap_binds(data_federal_only):
         "mortgage_interest": "10000"}},
         income={"wages": {"taxpayer_w2": "400000"}})
     r = pipeline.run(inp, data_federal_only, compute_marginals=False)
-    # SALT capped at 10,000 → itemized = 10,000 + 10,000 mortgage = 20,000
-    assert r.deduction_taken == Money(20_000)
+    # MAGI 400,000 is under the 500,000 phase-down threshold, so the 2025
+    # cap is the full 40,000: SALT 50,000 → 40,000; + 10,000 mortgage = 50,000
+    assert r.deduction_taken == Money(50_000)
     assert r.deduction_mode == "itemized"
 
 
 def test_ctc_phaseout(data_federal_only):
     dep = [{"name": "kid", "birth_date": "2016-02-01", "relationship": "child"}]
-    # AGI 150,000 < 200,000 → full 2,000 credit
+    # AGI 150,000 < 200,000 → full 2,200 credit (2025, OBBBA §70104)
     r1 = pipeline.run(make_input(dependents=dep, income={
         "wages": {"taxpayer_w2": "150000"}}), data_federal_only,
         compute_marginals=False)
-    assert r1.credits_nonrefundable == Money(2_000)
-    # AGI 210,000 → 10 steps × 50 = 500 reduction
+    assert r1.credits_nonrefundable == Money(2_200)
+    # AGI 210,000 → 10 steps × 50 = 500 reduction → 1,700
     r2 = pipeline.run(make_input(dependents=dep, income={
         "wages": {"taxpayer_w2": "210000"}}), data_federal_only,
         compute_marginals=False)
-    assert r2.credits_nonrefundable == Money(1_500)
+    assert r2.credits_nonrefundable == Money(1_700)
 
 
 def test_qbi_below_threshold(data_federal_only):
@@ -113,8 +115,8 @@ def test_qbi_below_threshold(data_federal_only):
     # Hand computation: ½SE tax = 50,000×0.9235×0.153/2 = 3,532.3875
     # tentative = 20% × (50,000 − 3,532.3875) = 9,293.5225
     # overall limit = 20% × taxable-before-QBI
-    #              = 20% × (50,000 − 3,532.3875 − 15,000) = 6,293.5225 ← binds
-    expected = (Money("50000") - Money("3532.3875") - Money("15000")) * Decimal("0.20")
+    #              = 20% × (50,000 − 3,532.3875 − 15,750) = 6,143.5225 ← binds
+    expected = (Money("50000") - Money("3532.3875") - Money("15750")) * Decimal("0.20")
     assert abs(r.qbi_deduction - expected) < Money("0.01")
 
 
@@ -252,17 +254,17 @@ def test_marginal_rate_includes_additional_medicare_with_box5(data_federal_only)
 
 def test_schedule_c_loss_reduces_agi(data_federal_only):
     """Single, wages 100,000, Schedule C −20,000 (Schedule 1 line 3).
-    total income = AGI = 80,000 ; taxable = 80,000 − 15,000 = 65,000
-    10%×11,925 = 1,192.50 ; 12%×36,550 = 4,386.00 ; 22%×16,525 = 3,635.50
-    total = 9,214.00 — and no SE tax on a loss."""
+    total income = AGI = 80,000 ; taxable = 80,000 − 15,750 = 64,250
+    10%×11,925 = 1,192.50 ; 12%×36,550 = 4,386.00 ; 22%×15,775 = 3,470.50
+    total = 9,049.00 — and no SE tax on a loss."""
     inp = make_input(income={"wages": {"taxpayer_w2": "100000"},
                              "business": {"schedule_c_net": "-20000"}})
     r = pipeline.run(inp, data_federal_only, compute_marginals=False)
     assert r.total_income == Money(80_000)
     assert r.agi == Money(80_000)
-    assert r.taxable_income == Money(65_000)
+    assert r.taxable_income == Money(64_250)
     assert r.se_tax == ZERO
-    assert r.federal_total_tax.round_cent() == Money("9214.00")
+    assert r.federal_total_tax.round_cent() == Money("9049.00")
 
 
 def test_schedule_c_loss_is_disclosed(data_federal_only):

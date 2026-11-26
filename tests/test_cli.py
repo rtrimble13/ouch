@@ -70,8 +70,9 @@ def test_estimate_json_schema(profile_path):
     assert r.returncode == 0
     doc = json.loads(r.stdout)
     assert doc["schema_version"] == 1
-    assert doc["result"]["taxable_income"] == "85000.00"
-    assert doc["result"]["federal_total_tax"] == "13614.00"
+    # 2025: 100,000 − 15,750 = 84,250 taxable; 1,192.50 + 4,386.00 + 7,870.50
+    assert doc["result"]["taxable_income"] == "84250.00"
+    assert doc["result"]["federal_total_tax"] == "13449.00"
     assert doc["disclaimer"].startswith("Estimates only")
     assert any(item["id"] == "fed.tax.total" for item in doc["trace"])
 
@@ -80,7 +81,7 @@ def test_estimate_set_override(profile_path):
     r = run_cli("--format", "json", "estimate", "--set",
                 "income.wages.taxpayer_w2=200000", profile=profile_path)
     doc = json.loads(r.stdout)
-    assert doc["result"]["taxable_income"] == "185000.00"
+    assert doc["result"]["taxable_income"] == "184250.00"  # 200,000 − 15,750
 
 
 def test_explain(profile_path):
