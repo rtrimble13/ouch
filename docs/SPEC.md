@@ -1244,6 +1244,16 @@ age the day before the birthday). Married filers must file jointly. MAGI is
 AGI plus the Puerto Rico, Form 2555 and Form 4563 exclusions; v1 uses AGI.
 The valid-SSN requirement has no input, so a warning says it is assumed.
 
+**Tips, overtime and car-loan interest** (Parts II–IV) share one data shape,
+`PhasedDeduction`: `min(amount, cap[status])` less `reduction_per_step` for
+each `step` ($1,000) of MAGI over `phaseout_threshold[status]`, with the step
+count rounded down (tips, overtime) or up (car-loan interest) as the form's
+lines 11, 19 and 28 direct. Tips and overtime need a joint return if married;
+car-loan interest doesn't. Tips and overtime are deductions, not exclusions:
+they stay in W-2 box 1, AGI and FICA, and each person's tips plus overtime
+can't exceed their box 1. Occupation, FLSA-premium and vehicle eligibility
+have no inputs and are disclosed as assumed.
+
 **Mortgage interest limitation**: deductible portion =
 `interest × min(1, acquisition_limit / average_balance)`, using the
 grandfathered limit if the profile flags pre-cutoff debt.

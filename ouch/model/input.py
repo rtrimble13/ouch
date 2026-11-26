@@ -61,6 +61,14 @@ class WagesIncome(_Frozen):
     # 401(k)/403(b) deferrals.
     taxpayer_medicare_wages: Decimal = NonNeg
     spouse_medicare_wages: Decimal = NonNeg
+    # Schedule 1-A (2025–2028). Both are already inside box 1 (they are
+    # deductions, not exclusions), so each person's tips + overtime can't
+    # exceed their box 1. Overtime is the qualified premium only: the "half"
+    # of time-and-a-half.
+    taxpayer_qualified_tips: Decimal = NonNeg
+    spouse_qualified_tips: Decimal = NonNeg
+    taxpayer_qualified_overtime: Decimal = NonNeg
+    spouse_qualified_overtime: Decimal = NonNeg
 
 
 class InvestmentIncome(_Frozen):
@@ -148,6 +156,9 @@ class ItemizedDeductions(_Frozen):
 class Deductions(_Frozen):
     mode: DeductionMode = DeductionMode.AUTO
     itemized: ItemizedDeductions = ItemizedDeductions()
+    # Schedule 1-A Part IV: qualified passenger vehicle loan interest paid in
+    # the year (personal use; not interest already on Schedule C/E/F).
+    car_loan_interest: Decimal = NonNeg
 
 
 class Expenses(_Frozen):
@@ -246,6 +257,17 @@ class TaxInput(_Frozen):
                 "married_filing_jointly — a separate or unmarried return "
                 "carries only its own filer's business"
             )
+        w = self.income.wages
+        for who, box1, tips, overtime in (
+                ("taxpayer", w.taxpayer_w2, w.taxpayer_qualified_tips,
+                 w.taxpayer_qualified_overtime),
+                ("spouse", w.spouse_w2, w.spouse_qualified_tips,
+                 w.spouse_qualified_overtime)):
+            if tips + overtime > box1:
+                raise ValueError(
+                    f"{who} qualified tips + overtime ({tips + overtime}) exceed "
+                    f"{who} W-2 box 1 wages ({box1}); both are part of box 1 "
+                    f"wages, so set income.wages.{who}_w2 to include them")
         inv = self.income.investment
         if inv.in_state_muni_interest > inv.tax_exempt_interest:
             raise ValueError(

@@ -2,10 +2,9 @@
 # ("OBBBA") by Rev. Proc. 2025-32 §3, plus the 2025 forms and instructions.
 # Each section cites its source in a comment; the full list is in meta.source.
 #
-# Still `verified: false` only because the Schedule 1-A tips, overtime and
-# car-loan interest deductions (2025–2028) aren't modelled yet
-# (rtrimble13/ouch#26). The 2026-only changes (dependent care rates,
-# charitable floor, §68 limit, QBI minimum) don't apply to 2025.
+# Every figure traces to published guidance and every 2025 provision ouch
+# covers is modelled. Still `verified: false` until a reviewer checks a
+# random sample of figures against the sources (spec appendix D, item 6).
 meta:
   jurisdiction: US
   year: 2025
@@ -19,13 +18,12 @@ meta:
     - "2025 Form 1040-ES: $176,100 social security maximum; due dates (June 16, 2025)"
     - "Notice 2025-67: 2025 saver's credit limits (the amounts it increases from)"
     - "IRS quarterly interest rates page: 2025 underpayment rates (IRB 2024-49, 2025-13, 2025-23, 2025-37)"
-    - "Schedule 1-A (Form 1040) (2025), Part V; IRS OBBBA provisions page: senior deduction 2025 through 2028"
+    - "Schedule 1-A (Form 1040) (2025), Parts II–V: tips, overtime, car-loan interest, senior deduction; IRS OBBBA provisions page: 2025 through 2028"
     - "Instructions for Forms 8959 (QSS $200,000), 8960, 8863, Schedule D; Pubs 502, 526, 915, 936 (statutory, unindexed amounts)"
   notes: >
-    Verified against Rev. Proc. 2024-40, Rev. Proc. 2025-32 and the 2025 forms
-    and instructions. The Schedule 1-A tips, overtime and car-loan interest
-    deductions (2025–2028) aren't modelled yet (rtrimble13/ouch#26), so the
-    file stays unverified.
+    Checked against Rev. Proc. 2024-40, Rev. Proc. 2025-32 and the 2025 forms
+    and instructions. Awaiting an independent reviewer's sample check (spec
+    appendix D, item 6) before verified is set to true.
 
 ordinary_brackets:            # Rev. Proc. 2024-40 §2.01, unchanged by OBBBA (Rev. Proc. 2025-32 §3)
   single:
@@ -288,3 +286,52 @@ schedule_1a:
       head_of_household: 75_000
       qualifying_surviving_spouse: 75_000
     phaseout_rate: 0.06        # line 34
+  # Schedule 1-A (Form 1040) (2025) Parts II–IV. Statutory for 2025–2028, not indexed.
+  tips:                        # Part II, lines 7–13
+    cap:                       # line 7: per return
+      single: 25_000
+      married_filing_jointly: 25_000
+      married_filing_separately: 25_000
+      head_of_household: 25_000
+      qualifying_surviving_spouse: 25_000
+    phaseout_threshold:        # line 9
+      single: 150_000
+      married_filing_jointly: 300_000
+      married_filing_separately: 150_000   # not claimable: joint return required
+      head_of_household: 150_000
+      qualifying_surviving_spouse: 150_000
+    reduction_per_step: 100    # lines 11–12: $100 per $1,000, rounded down
+    round_steps: down
+    joint_return_required: true
+  overtime:                    # Part III, lines 15–21
+    cap:                       # line 15
+      single: 12_500
+      married_filing_jointly: 25_000
+      married_filing_separately: 12_500
+      head_of_household: 12_500
+      qualifying_surviving_spouse: 12_500
+    phaseout_threshold:        # line 17
+      single: 150_000
+      married_filing_jointly: 300_000
+      married_filing_separately: 150_000   # not claimable: joint return required
+      head_of_household: 150_000
+      qualifying_surviving_spouse: 150_000
+    reduction_per_step: 100    # lines 19–20: $100 per $1,000, rounded down
+    round_steps: down
+    joint_return_required: true
+  car_loan_interest:           # Part IV, lines 24–30
+    cap:                       # line 24
+      single: 10_000
+      married_filing_jointly: 10_000
+      married_filing_separately: 10_000
+      head_of_household: 10_000
+      qualifying_surviving_spouse: 10_000
+    phaseout_threshold:        # line 26
+      single: 100_000
+      married_filing_jointly: 200_000
+      married_filing_separately: 100_000   # claimable: no joint-return condition
+      head_of_household: 100_000
+      qualifying_surviving_spouse: 100_000
+    reduction_per_step: 200    # lines 28–29: $200 per $1,000, rounded UP
+    round_steps: up
+    joint_return_required: false
