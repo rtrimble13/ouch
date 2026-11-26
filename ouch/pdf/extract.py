@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from ouch.errors import PDFError
-from ouch.pdf.maps_loader import FieldMap, FormMap
+from ouch.pdf.maps_loader import CodedFieldMap, FieldMap, FormMap
 
 CONFIDENCE_ACROFORM = 0.98
 CONFIDENCE_SAME_LINE = 0.90
@@ -151,6 +151,124 @@ def extract_field(text: str, acroform: dict, field: FieldMap) -> ExtractedField:
         note="not found in document")
 
 
+_CODE3 = re.compile(r"(?<![\d.,])\d{3}(?![\d.,])")  # 3 digits, not part of a number
+
+
+def _occupation_codes(text: str, acroform: dict, box: str,
+                      label: str) -> list[str] | None:
+    """The 3-digit codes in an occupation-code box (W-2 box 14b): from an
+    AcroForm field named for the box, else after the box's label on its
+    line, else on the line below. None when the box isn't found at all."""
+    for name, raw in acroform.items():
+        if box.lower() in name.lower():
+            return _CODE3.findall(raw)
+    lines = text.splitlines()
+    box_marker = re.compile(rf"(?<![\w.]){re.escape(box)}\b")
+    for i, line in enumerate(lines):
+        low = line.lower()
+        if label.lower() in low:
+            rest = line[low.index(label.lower()) + len(label):]
+        elif box_marker.search(line):
+            rest = line[box_marker.search(line).end():]
+        else:
+            continue
+        codes = _CODE3.findall(rest)
+        if not codes and i + 1 < len(lines) and re.fullmatch(
+                r"\s*(?:\d{3}\s*)+", lines[i + 1]):
+            codes = _CODE3.findall(lines[i + 1])
+        return codes
+    return None
+
+
+def _coded_entries(text: str, acroform: dict,
+                   cf: CodedFieldMap) -> list[ExtractedField]:
+    """Every entry of ``cf.code`` in box ``cf.box`` (e.g. W-2 box 12 code TP).
+
+    Recognised layouts, in cascade order:
+    1. AcroForm: a code field and an amount field for the same slot, e.g.
+       ``Box12a_Code`` = "TP" and ``Box12a_Amount`` = "4000.00".
+    2. Same line: ``12a TP 4,000.00`` (separators like ``|`` or ``:`` allowed).
+    3. Marker line then entry line: ``12a See instructions for box 12`` with
+       ``TP 4,000.00`` on the next line — lower confidence, so review must
+       confirm it.
+    Codes match case-sensitively and as whole tokens, so "TP" never matches
+    inside a word.
+    """
+    found: list[ExtractedField] = []
+    box, code = re.escape(cf.box), re.escape(cf.code)
+    slots = "".join(cf.slots)
+
+    def entry(slot: str, raw: str, method: str, conf: float,
+              context: str) -> ExtractedField:
+        value, note = _parse_money(raw)
+        return ExtractedField(
+            box=cf.key, label=f"{cf.box}{slot} code {cf.code}: {cf.description}",
+            target=cf.target, raw_text=raw, value=value, method=method,
+            confidence=conf if not note else 0.5, context=context, note=note)
+
+    # Stage 1: AcroForm code/amount pairs.
+    for slot in cf.slots:
+        tag = f"{cf.box}{slot}".lower()
+        names = {n.lower(): n for n in acroform}
+        code_name = next((n for low, n in names.items()
+                          if tag in low and "code" in low), None)
+        if code_name is None or acroform[code_name].strip() != cf.code:
+            continue
+        amount_name = next((n for low, n in names.items()
+                            if tag in low and "code" not in low), None)
+        if amount_name is not None:
+            found.append(entry(slot, acroform[amount_name], "acroform",
+                               CONFIDENCE_ACROFORM,
+                               f"AcroForm fields '{code_name}', '{amount_name}'"))
+    if found:
+        return found
+
+    lines = text.splitlines()
+    same_line = re.compile(
+        rf"(?<![\w.]){box}\s*([{slots}])\b[\s:|.-]*(?:code\s*)?{code}\b(.*)")
+    marker = re.compile(rf"(?<![\w.]){box}\s*([{slots}])\b")
+    next_entry = re.compile(rf"^\s*{code}\b(.*)")
+    box_phrase = re.compile(rf"\bbox\s*{box}\b", re.IGNORECASE)
+    for i, line in enumerate(lines):
+        m = same_line.search(line)
+        if m:
+            amount = _MONEY.search(m.group(2))
+            if amount:
+                found.append(entry(m.group(1), amount.group(1), "text-line",
+                                   CONFIDENCE_SAME_LINE, line.strip()))
+            continue
+        mk = marker.search(line)
+        # The printed label "See instructions for box 12" isn't an amount.
+        rest = box_phrase.sub("", line[mk.end():]) if mk else ""
+        if mk and i + 1 < len(lines) and not _MONEY.search(rest):
+            n = next_entry.match(lines[i + 1])
+            amount = _MONEY.search(n.group(1)) if n else None
+            if amount:
+                found.append(entry(mk.group(1), amount.group(1),
+                                   "text-next-line", CONFIDENCE_NEXT_LINE,
+                                   line.strip() + " ⏎ " + lines[i + 1].strip()))
+    if found and cf.occupation_check is not None:
+        oc = cf.occupation_check
+        codes = _occupation_codes(text, acroform, oc.box, oc.label)
+        if codes is None or not codes:
+            note = (f"box {oc.box} ({oc.label}) not found: code {cf.code} is "
+                    f"every cash tip reported, so confirm the tips were earned "
+                    f"in a qualifying occupation")
+            conf = min(CONFIDENCE_NEXT_LINE, DEFAULT_THRESHOLD - 0.01)
+        elif oc.nonqualifying_code in codes:
+            note = (f"box {oc.box} lists {', '.join(codes)}: "
+                    f"'{oc.nonqualifying_code}' means some tips came from a "
+                    f"nonqualifying occupation, so enter only the qualified part")
+            conf = 0.5
+        else:
+            note, conf = "", None
+        if note:
+            found = [replace(f, note="; ".join(x for x in (f.note, note) if x),
+                             confidence=min(f.confidence, conf))
+                     for f in found]
+    return found
+
+
 def extract_form(text: str, acroform: dict,
                  form_map: FormMap) -> list[ExtractedField]:
     out = []
@@ -167,4 +285,6 @@ def extract_form(text: str, acroform: dict,
                     extracted, confidence=0.3,
                     note=f"value outside plausible range [{lo}, {hi}] — verify")
         out.append(extracted)
+    for cf in form_map.coded_fields:
+        out.extend(_coded_entries(text, acroform, cf))
     return out

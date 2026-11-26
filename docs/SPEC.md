@@ -1561,13 +1561,28 @@ fields:
   - box: "3"
     labels: ["Social security wages"]
     target: income.wages.{owner}_ss_wages
+coded_fields:                # box 12: code left of the line, amount right
   - box: "12"
-    type: coded
-    codes:
-      D:  adjustments.elective_deferral_401k
-      W:  adjustments.hsa_employer
-      DD: informational.employer_health_cost
+    slots: [a, b, c, d]
+    code: TP                   # 2026: total cash tips reported to employer
+    description: "Cash tips reported to employer"
+    target: income.wages.{owner}_qualified_tips
+    occupation_check:          # "000" in box 14b → some tips don't qualify
+      box: "14b"
+      label: "Treasury Tipped Occupation Code"
+      nonqualifying_code: "000"
+  - box: "12"
+    slots: [a, b, c, d]
+    code: TT                   # 2026: qualified overtime (premium only)
+    description: "Qualified overtime compensation"
+    target: income.wages.{owner}_qualified_overtime
 ```
+
+A coded field is always optional and sums across documents. Its entries are
+found as AcroForm code/amount pairs, as `12a TP 8,250.00` on one line, or as
+a `12a` marker followed by `TP 8,250.00` on the next line; the last is
+low-confidence and always goes to review. Other codes (D, W, DD, …) can be
+added the same way once ouch has a target for them.
 
 ### 11.6 Review workflow
 

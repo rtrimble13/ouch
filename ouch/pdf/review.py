@@ -59,6 +59,11 @@ def stage_document(path: Path, form_map: FormMap, score: float,
             if fm.box == ef.box:
                 aggregate = fm.aggregate
                 break
+        else:
+            for cf in form_map.coded_fields:
+                if cf.key == ef.box:
+                    aggregate = cf.aggregate
+                    break
         doc.fields.append(StagedField(
             source_file=path.name, form=form_map.form, box=ef.box,
             label=ef.label, target=ef.target.format(owner=owner),

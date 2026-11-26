@@ -209,3 +209,109 @@ def test_extract_w2_without_box5_still_valid(maps, w2_pdf):
     form = next(m for m in maps if m.id == "w2")
     boxes = {f.box for f in extract_mod.extract_form(text, acro, form)}
     assert "5" not in boxes
+
+
+# ----- W-2 box 12 coded entries (2026: TP tips, TT overtime) ---------------
+# General Instructions for Forms W-2 and W-3 (2026): box 12 holds "the IRS
+# code to the left of the vertical line in boxes 12a through 12d and the
+# money amount to the right". TP is "Total amount of cash tips reported to
+# the employer"; TT is "Total amount of qualified overtime compensation".
+# Box 14b lists Treasury Tipped Occupation Codes; "000" marks tips from a
+# nonqualifying occupation.
+
+W2_HEAD = ["Form W-2 Wage and Tax Statement 2026", "OMB No. 1545-0008",
+           "1 Wages, tips, other compensation 68,000.00",
+           "3 Social security wages 68,000.00"]
+
+
+def _w2_coded(maps, tmp_path, lines, name="w2c.pdf"):
+    pdf = make_pdf(tmp_path / name, W2_HEAD + lines)
+    form = next(m for m in maps if m.id == "w2")
+    text, acro = extract_mod.read_pdf_text(pdf)
+    return pdf, form, extract_mod.extract_form(text, acro, form)
+
+
+def test_box12_tp_and_tt_same_line(maps, tmp_path):
+    """Other codes (D, DD) sit in the same box and are ignored."""
+    _, _, fields = _w2_coded(maps, tmp_path, [
+        "12a D | 6,000.00", "12b TP | 8,250.00", "12c TT | 3,100.00",
+        "12d DD | 9,000.00", "14b Treasury Tipped Occupation Code(s) 101"])
+    coded = {f.box: f for f in fields if f.box.startswith("12 ")}
+    assert set(coded) == {"12 TP", "12 TT"}
+    assert coded["12 TP"].value == Decimal("8250.00")
+    assert coded["12 TT"].value == Decimal("3100.00")
+    assert coded["12 TP"].target == "income.wages.{owner}_qualified_tips"
+    assert coded["12 TT"].target == "income.wages.{owner}_qualified_overtime"
+    assert all(f.confidence >= extract_mod.DEFAULT_THRESHOLD for f in coded.values())
+    assert coded["12 TP"].note == ""   # 101 is a qualifying occupation code
+
+
+def test_box12_marker_then_entry_on_next_line_needs_review(maps, tmp_path):
+    _, _, fields = _w2_coded(maps, tmp_path, [
+        "12a See instructions for box 12", "TT 2,400.00"])
+    tt = next(f for f in fields if f.box == "12 TT")
+    assert tt.value == Decimal("2400.00")
+    assert tt.method == "text-next-line"
+    assert tt.confidence < extract_mod.DEFAULT_THRESHOLD
+
+
+def test_box14b_000_flags_tips_for_review(maps, tmp_path):
+    _, _, fields = _w2_coded(maps, tmp_path, [
+        "12a TP 8,250.00", "14b Treasury Tipped Occupation Code(s) 101 000"])
+    tp = next(f for f in fields if f.box == "12 TP")
+    assert tp.value == Decimal("8250.00")
+    assert tp.confidence < extract_mod.DEFAULT_THRESHOLD
+    assert "000" in tp.note and "nonqualifying" in tp.note
+
+
+def test_box14b_missing_flags_tips_for_review(maps, tmp_path):
+    _, _, fields = _w2_coded(maps, tmp_path, ["12a TP 8,250.00"])
+    tp = next(f for f in fields if f.box == "12 TP")
+    assert tp.confidence < extract_mod.DEFAULT_THRESHOLD
+    assert "14b" in tp.note
+
+
+def test_box12_codes_match_whole_tokens_and_valid_slots(maps, tmp_path):
+    """'TPX', a box 12e (there is none) and a stray 'TP' outside box 12 are
+    not entries."""
+    _, _, fields = _w2_coded(maps, tmp_path, [
+        "12a TPX 1,000.00", "12e TT 2,000.00", "TP 3,000.00"])
+    assert not [f for f in fields if f.box.startswith("12 ")]
+
+
+def test_no_box12_codes_leaves_the_rest_alone(maps, w2_pdf):
+    text, acro = extract_mod.read_pdf_text(w2_pdf)
+    form = next(m for m in maps if m.id == "w2")
+    fields = extract_mod.extract_form(text, acro, form)
+    assert not [f for f in fields if f.box.startswith("12 ")]
+    assert {f.box for f in fields} >= {"1", "2", "3"}
+
+
+def test_box12_acroform_pairs(maps):
+    form = next(m for m in maps if m.id == "w2")
+    acro = {"Box12a_Code": "DD", "Box12a_Amount": "9000.00",
+            "Box12b_Code": "TT", "Box12b_Amount": "3100.00",
+            "Box14b": "101"}
+    coded = [f for f in extract_mod.extract_form("", acro, form)
+             if f.box.startswith("12 ")]
+    assert len(coded) == 1
+    assert coded[0].box == "12 TT" and coded[0].value == Decimal("3100.00")
+    assert coded[0].method == "acroform"
+
+
+def test_box12_stages_to_owner_and_sums_across_w2s(maps, tmp_path):
+    docs = []
+    for i, amount in enumerate(("8,000.00", "1,500.00")):
+        pdf, form, fields = _w2_coded(
+            maps, tmp_path, [f"12a TP {amount}",
+                             "14b Treasury Tipped Occupation Code(s) 101"],
+            name=f"w2tp{i}.pdf")
+        doc = review_mod.stage_document(pdf, form, 1.0, fields, "spouse")
+        for f in doc.fields:
+            f.accepted = f.value is not None
+        docs.append(doc)
+    tp = next(f for f in docs[0].fields if f.box == "12 TP")
+    assert tp.target == "income.wages.spouse_qualified_tips"
+    assert tp.aggregate == "sum"
+    agg = review_mod.aggregate_accepted(docs)
+    assert agg["income.wages.spouse_qualified_tips"] == Decimal("9500.00")
