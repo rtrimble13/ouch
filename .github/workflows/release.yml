@@ -1,6 +1,9 @@
 # Publishes a GitHub release when the package version on main has no tag yet.
 #
 # A release happens when __version__ in ouch/__init__.py changes on main.
+# A version whose run was cancelled (a concurrency group keeps only one
+# pending run, so the middle of three quick merges is dropped) is caught up
+# by the next run, from the commit that introduced it.
 # The tag is v<version>, and the release carries the sdist, the wheel, their
 # SHA-256 checksums, and the matching CHANGELOG.md section as notes.
 # See docs/versioning-and-releases.md.
@@ -13,6 +16,8 @@ on:
       - "ouch/**"
       - "pyproject.toml"
       - "CHANGELOG.md"
+      - "scripts/relkit.py"
+      - ".github/workflows/release.yml"
   workflow_dispatch:
 
 permissions:

@@ -5,7 +5,8 @@ Subcommands:
   validate        check the version, pyproject wiring and CHANGELOG.md
   check-versions  require a version bump and changelog section when shipped files change
   package         build the sdist and wheel, with .sha256 files (default: dist/)
-  release         publish a GitHub release for the current version if it has no tag yet
+  release         publish a GitHub release for the current version if it has no tag yet,
+                  and for any earlier version that reached main without one
   notes           print the changelog section for a version
 
 Run `python scripts/relkit.py <subcommand> --help` for options. It uses only
@@ -439,26 +440,54 @@ def cmd_package(args) -> int:
     return 0
 
 
-def cmd_release(args) -> int:
-    version, findings = validate(args.root)
-    if findings.errors or version is None:
-        findings.emit()
-        print("refusing to release with validation errors")
-        return 1
+def versions_on_main(root: Path) -> list[tuple[str, str]]:
+    """Each version along HEAD's first-parent history, oldest first, with the
+    commit that introduced it (on main, the merge that brought it in)."""
+    seen: dict[str, str] = {}
+    for sha in git(root, "rev-list", "--first-parent", "--reverse", "HEAD").split():
+        try:
+            version = read_version(git(root, "show", f"{sha}:{VERSION_FILE}"))
+        except GitError:
+            continue
+        if version and version not in seen and VERSION_RE.match(version):
+            seen[version] = sha
+    return list(seen.items())
+
+
+def missed_versions(root: Path, current: str) -> list[tuple[str, str]]:
+    """Versions that reached main but were never released, oldest first.
+
+    A workflow concurrency group holds only one pending run: when three
+    merges land within a minute, the middle one's release run is cancelled
+    and its version is never tagged. Each release run catches those up.
+    Only versions newer than the oldest tag count, so history from before
+    the first release is left alone.
+    """
+    tags = set(git(root, "tag", "--list").split())
+    released = [Version.parse(t[len(TAG_PREFIX):]) for t in tags
+                if t.startswith(TAG_PREFIX) and VERSION_RE.match(t[len(TAG_PREFIX):])]
+    if not released:
+        return []
+    oldest = min(released)
+    return [(v, sha) for v, sha in versions_on_main(root)
+            if v != current and tag_for(v) not in tags
+            and oldest < Version.parse(v) < Version.parse(current)]
+
+
+def publish(root: Path, version: str, target: str, out: Path, *, latest: bool,
+            dry_run: bool) -> None:
     tag = tag_for(version)
-    if is_released(args.root, version):
-        print(f"{tag} is already released; nothing to do")
-        return 0
-    target = os.environ.get("GITHUB_SHA") or git(args.root, "rev-parse", "HEAD").strip()
-    notes = release_notes(args.root, version)
+    notes = release_notes(root, version)
     command = ["gh", "release", "create", tag, "--title", f"{PACKAGE} {version}", "--target", target]
     if Version.parse(version).is_prerelease:
         command.append("--prerelease")
-    if args.dry_run:
+    if not latest:
+        command.append("--latest=false")
+    if dry_run:
         print(f"would release {tag} from {target[:12]}:\n  {shlex.join(command)} <sdist, wheel, .sha256>")
         print("  notes:\n    " + notes.replace("\n", "\n    "))
-        return 0
-    assets = [str(p) for p in package(args.root, version, args.out)]
+        return
+    assets = [str(p) for p in package(root, version, out)]
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as fh:
         fh.write(notes)
     try:
@@ -466,6 +495,38 @@ def cmd_release(args) -> int:
     finally:
         os.unlink(fh.name)
     print(f"released {tag}")
+
+
+def publish_missed(root: Path, version: str, sha: str, out: Path, dry_run: bool) -> None:
+    """Release an earlier version from the commit that introduced it, built
+    and described from that commit's own tree, without marking it latest."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "tree"
+        git(root, "worktree", "add", "--detach", "-q", str(tree), sha)
+        try:
+            _, findings = validate(tree)
+            if findings.errors:
+                findings.emit()
+                raise RuntimeError(f"{tag_for(version)} at {sha[:12]} doesn't validate")
+            publish(tree, version, sha, out / tag_for(version), latest=False, dry_run=dry_run)
+        finally:
+            git(root, "worktree", "remove", "--force", str(tree))
+
+
+def cmd_release(args) -> int:
+    version, findings = validate(args.root)
+    if findings.errors or version is None:
+        findings.emit()
+        print("refusing to release with validation errors")
+        return 1
+    for missed, sha in missed_versions(args.root, version):
+        print(f"{tag_for(missed)} reached main at {sha[:12]} but was never released; catching up")
+        publish_missed(args.root, missed, sha, args.out, args.dry_run)
+    if is_released(args.root, version):
+        print(f"{tag_for(version)} is already released; nothing to do")
+        return 0
+    target = os.environ.get("GITHUB_SHA") or git(args.root, "rev-parse", "HEAD").strip()
+    publish(args.root, version, target, args.out, latest=True, dry_run=args.dry_run)
     return 0
 
 
@@ -496,7 +557,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", type=Path, help="output directory (default: <root>/dist)")
     p.set_defaults(func=cmd_package)
 
-    p = sub.add_parser("release", help="publish a GitHub release for the current version if untagged")
+    p = sub.add_parser("release", help="publish a GitHub release for the current version, and any missed ones, if untagged")
     p.add_argument("--dry-run", action="store_true", help="print the plan without building or publishing")
     p.add_argument("--out", type=Path, help="output directory (default: <root>/dist)")
     p.set_defaults(func=cmd_release)
