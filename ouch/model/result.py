@@ -157,7 +157,8 @@ class TaxResult:
     deduction_taken: Money
     deduction_mode: Literal["standard", "itemized"]
     qbi_deduction: Money
-    schedule_1a_deduction: Money         # 1040 line 13b (senior, tips, …)
+    schedule_1a_deduction: Money         # Schedule 1-A (senior, tips, …)
+    nonitemizer_charitable_deduction: Money  # 1040 line 12f (2026 onward)
     taxable_income: Money
     tax_ordinary: Money
     tax_preferential: Money

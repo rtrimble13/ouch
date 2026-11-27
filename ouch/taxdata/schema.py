@@ -124,12 +124,40 @@ class CharitableLimits(_Model):
     appreciated: Decimal
 
 
+class NonItemizerCharitable(_Model):
+    """Form 1040 line 12f (2026 onward): cash gifts deductible without
+    itemizing, up to ``amount`` (``mfj_amount`` on a joint return)."""
+    amount: Decimal = Field(gt=0)
+    mfj_amount: Decimal = Field(gt=0)
+
+
+class ItemizedLimitation(_Model):
+    """§68 as amended by OBBBA (2026 onward): itemized deductions are
+    reduced by ``rate`` × the lesser of the itemized total and the income
+    above ``threshold[status]`` (the start of the 37% bracket), measured as
+    AGI less Schedule 1-A and QBI deductions (draft 2026 Schedule A line 18)."""
+    rate: Decimal = Field(gt=0, le=1)
+    threshold: StatusAmount
+
+    @field_validator("threshold")
+    @classmethod
+    def _all_statuses(cls, v: StatusAmount) -> StatusAmount:
+        missing = [s.value for s in FilingStatus if s not in v]
+        if missing:
+            raise ValueError(f"limitation.threshold missing {', '.join(missing)}")
+        return v
+
+
 class Itemized(_Model):
     salt_cap: SaltCap
     medical_agi_floor: Decimal
     mortgage_acquisition_limit: Decimal
     mortgage_grandfathered_limit: Decimal
     charitable_agi_limits: CharitableLimits
+    # 2026 onward; each absent means the rule isn't in force that year.
+    charitable_floor_agi_pct: Optional[Decimal] = Field(default=None, gt=0, le=1)
+    nonitemizer_charitable: Optional[NonItemizerCharitable] = None
+    limitation: Optional[ItemizedLimitation] = None
 
 
 class WageUbiaAlt(_Model):

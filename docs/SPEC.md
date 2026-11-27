@@ -1254,6 +1254,20 @@ they stay in W-2 box 1, AGI and FICA, and each person's tips plus overtime
 can't exceed their box 1. Occupation, FLSA-premium and vehicle eligibility
 have no inputs and are disclosed as assumed.
 
+**2026 charitable changes and §68** (each data-driven, so absent years are
+unaffected):
+- `itemized.charitable_floor_agi_pct` (0.5%): charitable gifts allowed only
+  above that share of AGI, applied after the AGI-percentage limits.
+- `itemized.nonitemizer_charitable`: Form 1040 line 12f, cash gifts (less
+  donor-advised-fund and supporting-organization gifts) up to $1,000 /
+  $2,000 joint, for filers taking the standard deduction. AUTO mode itemizes
+  only when allowed itemized deductions exceed standard + line 12f.
+- `itemized.limitation`: itemized deductions less `rate` × min(itemized,
+  income − `threshold[status]`), where income is AGI less the Schedule 1-A
+  and QBI deductions (Schedule A line 18), applied after the other limits.
+  QBI is figured on the unreduced itemized total, and AMTI adds the
+  reduction back (§68 doesn't apply for AMT).
+
 **Mortgage interest limitation**: deductible portion =
 `interest × min(1, acquisition_limit / average_balance)`, using the
 grandfathered limit if the profile flags pre-cutoff debt.

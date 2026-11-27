@@ -147,6 +147,8 @@ def _compare_statuses(rt: Runtime, inp, data) -> None:
     results = [r for _, r in runs]
     row("AGI", [r.agi for r in results])
     row("Deduction", [r.deduction_taken for r in results])
+    if any(r.nonitemizer_charitable_deduction > ZERO for r in results):
+        row("Charitable (12f)", [r.nonitemizer_charitable_deduction for r in results])
     if any(r.schedule_1a_deduction > ZERO for r in results):
         row("Schedule 1-A", [r.schedule_1a_deduction for r in results])
     row("Taxable income", [r.taxable_income for r in results])

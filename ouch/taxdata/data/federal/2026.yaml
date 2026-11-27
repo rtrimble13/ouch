@@ -2,10 +2,9 @@
 # (P.L. 119-21, "OBBBA"). Each section cites its source in a comment; the
 # full list is in meta.source.
 #
-# Still `verified: false`: the charitable 0.5% floor, the non-itemizer
-# charitable deduction and the §68 limit aren't modelled yet
-# (rtrimble13/ouch#24), and the dependent care schedule comes from the IRS's
-# draft 2026 Form 2441 instructions (see meta.notes).
+# Still `verified: false`: several 2026 figures come from IRS draft forms
+# and instructions (see meta.notes) and need re-checking against the final
+# versions.
 meta:
   jurisdiction: US
   year: 2026
@@ -23,13 +22,14 @@ meta:
     - "Instructions for Forms 8959 and 8960, Form 8863, Schedule D; Pubs 502, 526, 915, 936 (statutory, unindexed amounts)"
     - "IRS OBBB provisions page (irs.gov/obbb), Section 70405: 50% maximum care credit rate, $3,000/$6,000 expense limits; draft 2026 Instructions for Form 2441, line 8 2026 Phaseout Schedule"
     - "Rev. Proc. 2025-32 §2.12; draft 2026 Form 8995 lines 15–17 and its draft instructions (line 16): $400 minimum QBI deduction for at least $1,000 of active QBI"
+    - "Draft 2026 Form 1040 lines 12e–13b and Instructions (What's New; line 12f); draft 2026 Schedule A line 18; 2026 Form 1040-ES What's New: charitable 0.5% floor, non-itemizer deduction, §68 limitation"
   notes: >
-    Rebuilt from 2026 primary sources. Not modelled yet: the charitable 0.5%
-    floor, the non-itemizer charitable deduction and the §68 limitation
-    (rtrimble13/ouch#24). The dependent care credit schedule and the QBI
-    minimum are from the IRS's DRAFT 2026 Form 2441 and Form 8995
-    instructions; re-check them against the final forms. The file stays
-    unverified until both are done.
+    Rebuilt from 2026 primary sources. From IRS DRAFT 2026 forms and
+    instructions, to re-check against the final versions: the dependent care
+    credit schedule (Form 2441), the QBI minimum (Form 8995), the
+    non-itemizer charitable deduction (Form 1040 line 12f), and the §68
+    limitation's measure (Schedule A line 18). The §68 rate is the 1040-ES's
+    rounded 5.4%, and its Itemized Deductions Worksheet isn't published yet.
 
 ordinary_brackets:            # Rev. Proc. 2025-32 §4.01, Tables 1–4
   single:
@@ -121,9 +121,24 @@ itemized:
   medical_agi_floor: 0.075     # Pub 502
   mortgage_acquisition_limit: 750_000          # Pub 936 (2025); 2026 not separately confirmed
   mortgage_grandfathered_limit: 1_000_000
-  # Pub 526 (2025) limits. The 2026 0.5%-of-AGI floor and the non-itemizer
-  # deduction aren't modelled yet (rtrimble13/ouch#24).
-  charitable_agi_limits: {cash: 0.60, noncash: 0.30, appreciated: 0.30}
+  charitable_agi_limits: {cash: 0.60, noncash: 0.30, appreciated: 0.30}   # Pub 526 (2025)
+  # Itemizers deduct only gifts above 0.5% of AGI (draft 2026 Form 1040
+  # instructions, What's New; 2026 Form 1040-ES).
+  charitable_floor_agi_pct: 0.005
+  # Form 1040 line 12f: cash gifts without itemizing (draft 2026 Form 1040
+  # and its line 12f instructions).
+  nonitemizer_charitable: {amount: 1_000, mfj_amount: 2_000}
+  # §68: 5.4% of the lesser of itemized deductions and income over the start
+  # of the 37% bracket (2026 Form 1040-ES, What's New; draft 2026 Schedule A
+  # line 18). The Itemized Deductions Worksheet isn't published yet.
+  limitation:
+    rate: 0.054
+    threshold:
+      single: 640_600
+      married_filing_jointly: 768_700
+      married_filing_separately: 384_350
+      head_of_household: 640_600
+      qualifying_surviving_spouse: 768_700
 
 qbi:                          # Rev. Proc. 2025-32 §4.26
   rate: 0.20

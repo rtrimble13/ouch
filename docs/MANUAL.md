@@ -945,7 +945,22 @@ Above-the-line: `traditional_ira`, `hsa`, `student_loan_interest`,
 `mortgage_interest`, `mortgage_balance`, `mortgage_grandfathered`,
 `state_local_income_tax` (the engine computes it when left at zero),
 `real_estate_tax`, `personal_property_tax`, `charitable_cash`,
-`charitable_noncash`, `medical_expenses`, `investment_interest`, `other`.
+`charitable_cash_daf`, `charitable_noncash`, `medical_expenses`,
+`investment_interest`, `other`.
+
+From 2026, charitable gifts change in three ways:
+
+- **Itemizers** deduct only gifts above 0.5% of AGI. What falls under the
+  floor carries forward to later years; ouch doesn't track carryovers and
+  says so in a warning.
+- **Non-itemizers** deduct cash gifts up to $1,000 ($2,000 joint) on Form
+  1040 line 12f. `charitable_cash` feeds it, less `charitable_cash_daf`:
+  the part given to donor-advised funds or supporting organizations, which
+  doesn't qualify. Noncash gifts don't qualify either. `auto` mode compares
+  itemized deductions against the standard deduction **plus** line 12f.
+- **Top-bracket itemizers** lose 5.4% of the lesser of their itemized
+  deductions and their income over the start of the 37% bracket ($768,700
+  joint, $640,600 single or head of household, $384,350 separate).
 
 ### `[expenses]`
 
@@ -1478,6 +1493,7 @@ itemization, and part-year allocation by residency-month ratio.
 | AMT | approximate | Only the standard-deduction and SALT addbacks are modeled; ISO bargain elements and other preferences are not |
 | Part-year state | approximate | A residency-month ratio, not each state's own allocation schedule |
 | Wash sales | approximate | Exact-symbol matches only; cross-issuer "substantially identical" is a legal judgment the tool will not make |
+| §68 itemized limitation (2026) | approximate | Rate (5.4%) and thresholds from the 2026 Form 1040-ES; the Schedule A Itemized Deductions Worksheet isn't published yet. The charitable 0.5% floor is applied after the AGI-percentage limits |
 | SALT cap phase-down | exact, except | MAGI is taken as AGI: income excluded under §§911/931/933 (foreign earned income, possessions, Puerto Rico) has no profile input |
 | Underpayment penalty | heuristic | A Form 2210 approximation |
 | EITC | approximate | Residency/SSN/age-25-65 tests for childless claimants are not modeled |

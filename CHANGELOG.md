@@ -6,6 +6,17 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-27
+
+2026 charitable changes and the overall limit on itemized deductions (rtrimble13/ouch#24). **2026 estimates change** for itemizers who give to charity, for non-itemizers who give cash, and for itemizers in the top bracket.
+
+### Changed
+
+- **Itemizers, 2026:** only charitable gifts above 0.5% of AGI are deductible. A warning notes that the excess carries forward, which ouch doesn't track. Example: AGI $200,000 and $5,000 of gifts gives $4,000.
+- **Non-itemizers, 2026:** cash gifts up to $1,000 ($2,000 joint) are deductible on Form 1040 line 12f, shown as `nonitemizer_charitable_deduction`. A new `deductions.itemized.charitable_cash_daf` marks the part given to donor-advised funds or supporting organizations, which doesn't qualify. Choosing between the standard and itemized deductions now counts line 12f on the standard side, so a filer whose itemized total only just beats the standard deduction may now be better off not itemizing.
+- **Top bracket, 2026 (§68):** itemized deductions are reduced by 5.4% of the lesser of the itemized total and income above $768,700 joint ($640,600 single or head of household, $384,350 separate). The reduction is added back for AMT. This is approximate until the IRS publishes the Schedule A worksheet.
+- The Schedule 1-A trace line now says "Form 1040 line 13 (13b for 2025, 13a from 2026)": the 2026 Form 1040 swaps lines 13a and 13b.
+
 ## [0.4.0] - 2026-11-27
 
 2026 credit and QBI changes from OBBBA (rtrimble13/ouch#25). **2026 estimates change** for anyone claiming the child and dependent care credit, and for small active businesses.
