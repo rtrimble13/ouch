@@ -104,6 +104,10 @@ class BusinessIncome(_Frozen):
     qbi_w2_wages_paid: Decimal = NonNeg
     qbi_ubia: Decimal = NonNeg
     sstb: bool = False
+    # §469(h) material participation. Only QBI from businesses you
+    # materially participate in counts toward the 2026 minimum QBI
+    # deduction; passive income doesn't.
+    material_participation: bool = True
 
 
 class RetirementIncome(_Frozen):

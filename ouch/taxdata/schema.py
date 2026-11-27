@@ -137,6 +137,14 @@ class WageUbiaAlt(_Model):
     ubia_pct: Decimal
 
 
+class QbiMinimum(_Model):
+    """§199A(i) (OBBBA §70105, 2026 onward): the deduction is at least
+    ``amount`` when active QBI is at least ``active_qbi_threshold``
+    (draft 2026 Form 8995 lines 16–17)."""
+    amount: Decimal = Field(gt=0)
+    active_qbi_threshold: Decimal = Field(gt=0)
+
+
 class Qbi(_Model):
     rate: Decimal
     threshold: StatusAmount
@@ -144,6 +152,7 @@ class Qbi(_Model):
     wage_limit_pct: Decimal
     wage_ubia_alt: WageUbiaAlt
     sstb_disallowed_above_phasein: bool = True
+    minimum_deduction: Optional[QbiMinimum] = None
 
 
 class SocialSecurityPayroll(_Model):
@@ -231,15 +240,39 @@ class Eitc(_Model):
     by_children: list[EitcTier]
 
 
+class CareHighIncomePhasedown(_Model):
+    """The second step-down of the care credit rate (OBBBA §70405, 2026):
+    from the first tier's floor, ``step_rate`` for each ``step`` (or part)
+    of AGI over the threshold, down to ``min_rate``. Joint returns have
+    their own threshold and step; every other status uses the ``other``
+    figures."""
+    agi_threshold_mfj: Decimal
+    agi_threshold_other: Decimal
+    step_mfj: Decimal = Field(gt=0)
+    step_other: Decimal = Field(gt=0)
+    step_rate: Decimal = Field(gt=0, le=1)
+    min_rate: Decimal = Field(ge=0, le=1)
+
+
 class ChildDependentCare(_Model):
     max_expenses_one: Decimal
     max_expenses_two_plus: Decimal
-    max_rate: Decimal                 # 35%
-    min_rate: Decimal                 # 20% floor
+    max_rate: Decimal                 # 35% (50% from 2026)
+    min_rate: Decimal                 # floor of the first step-down
     agi_threshold: Decimal            # rate steps down above this
-    step: Decimal                     # per this much AGI
+    step: Decimal                     # per this much AGI (or part)
     step_rate: Decimal                # by this much
     qualifying_age_max: int = 12
+    # 2026 onward: a second step-down to a lower floor at higher AGI.
+    high_income_phasedown: Optional[CareHighIncomePhasedown] = None
+
+    @model_validator(mode="after")
+    def _floors_ordered(self) -> "ChildDependentCare":
+        hp = self.high_income_phasedown
+        if hp is not None and hp.min_rate > self.min_rate:
+            raise ValueError("child_dependent_care.high_income_phasedown.min_rate "
+                             "must not exceed the first tier's min_rate")
+        return self
 
 
 class EducationPhaseout(_Model):

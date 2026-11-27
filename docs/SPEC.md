@@ -1280,7 +1280,20 @@ else:  # inside the phase-in range
     if sstb: reduce QBI, W2, and UBIA by pct before applying the above
     apply the wage limitation only to the `pct` fraction of the excess
     deduction = min(result, overall_limit)
+
+# 2026 onward (§199A(i), OBBBA §70105; draft 2026 Form 8995 lines 15–17),
+# when the data file has qbi.minimum_deduction:
+if material_participation and QBI >= active_qbi_threshold ($1,000):
+    deduction = max(deduction, amount)          # $400, even past overall_limit
 ```
+
+**Child and dependent care credit rate**: `max_rate` less `step_rate` for
+each `step` (or part) of AGI over `agi_threshold`, not below `min_rate`. From
+2026 the data adds `high_income_phasedown`, a second step-down from that
+floor to a lower one, with its own threshold and step for joint returns. For
+2026 that's 50% to 35% by 1 point per $2,000 over $15,000, then 35% to 20% by
+1 point per $4,000 over $150,000 on a joint return, or per $2,000 over $75,000
+for any other status (draft 2026 Instructions for Form 2441, line 8).
 
 Fidelity: `approximate` — aggregation elections across multiple businesses and
 REIT/PTP components are v2. The engine warns when more than one business is

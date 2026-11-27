@@ -132,10 +132,18 @@ def child_tax_credit(inp: TaxInput, agi: Money, tax_liability: Money,
             earned_excess * ctc.refundable_earned_income_pct,
         )
 
-    warnings = ()
+    warnings: tuple[str, ...] = ()
+    if n_children > 0 and after > ZERO:
+        # OBBBA §70104 (2025 onward): the claimant needs an SSN valid for
+        # employment, issued by the return's due date; on a joint return one
+        # spouse's is enough (2026 Form 1040-ES, What's New). Each qualifying
+        # child needs one too. ouch has no SSN inputs.
+        warnings += ("child tax credit assumes each qualifying child, and you "
+                     "(or at least one spouse on a joint return), have a Social "
+                     "Security number valid for employment",)
     if residue - refundable > ZERO:
-        warnings = (f"${(residue - refundable).round_dollar().amount:,.0f} of "
-                    "child/dependent credit lost to the liability limit",)
+        warnings += (f"${(residue - refundable).round_dollar().amount:,.0f} of "
+                     "child/dependent credit lost to the liability limit",)
 
     return CtcResult(
         qualifying_children=n_children, other_dependents=n_other,
@@ -211,7 +219,10 @@ def earned_income_credit(inp: TaxInput, agi: Money, earned_income: Money,
 
 def dependent_care_credit(inp: TaxInput, agi: Money, earned_income: Money,
                           fed: FederalData) -> Money:
-    """Nonrefundable. Rate slides from max_rate to min_rate as AGI rises."""
+    """Nonrefundable. The rate steps down from max_rate to min_rate as AGI
+    rises, by step_rate for each step (or part) over agi_threshold. From
+    2026 a second step-down takes it lower still at higher AGI (draft 2026
+    Instructions for Form 2441, line 8 "2026 Phaseout Schedule")."""
     care = fed.credits.child_dependent_care
     expenses = Money(inp.expenses.dependent_care)
     if care is None or expenses <= ZERO:
@@ -229,6 +240,15 @@ def dependent_care_credit(inp: TaxInput, agi: Money, earned_income: Money,
     excess = maxm(ZERO, agi - Money(care.agi_threshold))
     steps = math.ceil(excess.ratio(Money(care.step))) if excess > ZERO else 0
     rate = max(care.max_rate - care.step_rate * steps, care.min_rate)
+    hp = care.high_income_phasedown
+    if hp is not None:
+        joint = inp.taxpayer.filing_status == FilingStatus.MARRIED_FILING_JOINTLY
+        threshold = Money(hp.agi_threshold_mfj if joint else hp.agi_threshold_other)
+        step = Money(hp.step_mfj if joint else hp.step_other)
+        excess2 = maxm(ZERO, agi - threshold)
+        if excess2 > ZERO:
+            steps2 = math.ceil(excess2.ratio(step))
+            rate = max(rate - hp.step_rate * steps2, hp.min_rate)
     return base * rate
 
 

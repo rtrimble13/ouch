@@ -330,12 +330,14 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     taxable_before_qbi = maxm(ZERO, agi - deduction - schedule_1a)
     qbi = qbi_deduction(inp, taxable_before_qbi, pref_income,
                         se.se_deduction, se_health, fed)
+    warnings.extend(qbi.warnings)
     if qbi.deduction > ZERO:
         tb.add("fed.qbi", "QBI deduction", qbi.deduction,
                jurisdiction="federal",
                rule="20% of qualified business income after allocable "
                "adjustments, limited to 20% of taxable income less net "
-               "capital gain; wage/UBIA limit above the threshold",
+               "capital gain; wage/UBIA limit above the threshold"
+               + ("; at least the minimum for active QBI" if qbi.warnings else ""),
                form_ref="Form 8995", authority="IRC §199A",
                inputs=("fed.deduction", "fed.agi"),
                fidelity=Fidelity.APPROXIMATE)

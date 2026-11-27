@@ -2,11 +2,10 @@
 # (P.L. 119-21, "OBBBA"). Each section cites its source in a comment; the
 # full list is in meta.source.
 #
-# Still `verified: false`: some 2026 law isn't representable yet, so those
-# parameters stay at their pre-2026 values (see meta.notes):
-#   - child and dependent care credit: 2026 rate schedule (rtrimble13/ouch#25)
-#   - charitable 0.5% floor, non-itemizer deduction, §68 limit (rtrimble13/ouch#24)
-#   - QBI minimum deduction (rtrimble13/ouch#25)
+# Still `verified: false`: the charitable 0.5% floor, the non-itemizer
+# charitable deduction and the §68 limit aren't modelled yet
+# (rtrimble13/ouch#24), and the dependent care schedule comes from the IRS's
+# draft 2026 Form 2441 instructions (see meta.notes).
 meta:
   jurisdiction: US
   year: 2026
@@ -22,13 +21,15 @@ meta:
     - "Schedule 1-A (Form 1040) (2025), Parts II–V; 2026 Form 1040-ES What's New (tips, overtime, car-loan interest, seniors); IRS OBBBA provisions page: 2025 through 2028"
     - "2026 Schedule 8812 (CTC, ODC, phase-out, refundable portion); Notice 2025-67 and 2026 Form 8880 (saver's credit)"
     - "Instructions for Forms 8959 and 8960, Form 8863, Schedule D; Pubs 502, 526, 915, 936 (statutory, unindexed amounts)"
+    - "IRS OBBB provisions page (irs.gov/obbb), Section 70405: 50% maximum care credit rate, $3,000/$6,000 expense limits; draft 2026 Instructions for Form 2441, line 8 2026 Phaseout Schedule"
+    - "Rev. Proc. 2025-32 §2.12; draft 2026 Form 8995 lines 15–17 and its draft instructions (line 16): $400 minimum QBI deduction for at least $1,000 of active QBI"
   notes: >
-    Rebuilt from 2026 primary sources. Parameters for provisions the engine
-    can't model yet stay at their pre-2026 values: the dependent care credit
-    (2026 50% maximum rate, rtrimble13/ouch#25), the charitable 0.5% floor,
-    non-itemizer deduction and §68 limitation (rtrimble13/ouch#24), and the QBI
-    minimum deduction (rtrimble13/ouch#25). The file stays unverified until
-    those land.
+    Rebuilt from 2026 primary sources. Not modelled yet: the charitable 0.5%
+    floor, the non-itemizer charitable deduction and the §68 limitation
+    (rtrimble13/ouch#24). The dependent care credit schedule and the QBI
+    minimum are from the IRS's DRAFT 2026 Form 2441 and Form 8995
+    instructions; re-check them against the final forms. The file stays
+    unverified until both are done.
 
 ordinary_brackets:            # Rev. Proc. 2025-32 §4.01, Tables 1–4
   single:
@@ -141,6 +142,9 @@ qbi:                          # Rev. Proc. 2025-32 §4.26
   wage_limit_pct: 0.50
   wage_ubia_alt: {wage_pct: 0.25, ubia_pct: 0.025}
   sstb_disallowed_above_phasein: true
+  minimum_deduction:           # §199A(i), OBBBA §70105; Rev. Proc. 2025-32 §2.12; draft 2026 Form 8995 line 16
+    amount: 400                # indexed only after 2026
+    active_qbi_threshold: 1_000
 
 payroll:
   social_security:
@@ -231,19 +235,22 @@ credits:
       - {children: 3, phase_in_rate: 0.45, earned_income_amount: 18_290,
          max_credit: 8_231, phaseout_start_mfj: 31_160,
          phaseout_start_other: 23_890, phaseout_rate: 0.2106}
-  # PRE-2026 SCHEDULE, NOT 2026 LAW. The 2026 credit's maximum rate is 50%
-  # (2026 Form 1040-ES, Pub 505), with a step-down schedule this schema
-  # can't express yet (rtrimble13/ouch#25). Until then the credit is
-  # understated for lower-AGI filers.
-  child_dependent_care:
-    max_expenses_one: 3_000
+  child_dependent_care:          # OBBBA §70405; IRS OBBB page; draft 2026 Instructions for Form 2441, line 8
+    max_expenses_one: 3_000      # "remain $3,000 … and $6,000" (IRS OBBB page)
     max_expenses_two_plus: 6_000
-    max_rate: 0.35
-    min_rate: 0.20
+    max_rate: 0.50               # 50% up to $15,000 of AGI
+    min_rate: 0.35               # first tier: −1 point per $2,000 (or part) to 35%
     agi_threshold: 15_000
     step: 2_000
     step_rate: 0.01
     qualifying_age_max: 12
+    high_income_phasedown:       # then −1 point per $4,000 joint / $2,000 other to 20%
+      agi_threshold_mfj: 150_000
+      agi_threshold_other: 75_000
+      step_mfj: 4_000
+      step_other: 2_000
+      step_rate: 0.01
+      min_rate: 0.20             # reached above $206,000 joint / $103,000 other
   education:
     aotc:                       # Form 8863 instructions (statutory, not indexed)
       first_dollar: 2_000

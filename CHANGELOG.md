@@ -6,6 +6,19 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-27
+
+2026 credit and QBI changes from OBBBA (rtrimble13/ouch#25). **2026 estimates change** for anyone claiming the child and dependent care credit, and for small active businesses.
+
+### Changed
+
+- **Child and dependent care credit, 2026:** the rate starts at 50%, not 35%. It falls 1 point per $2,000 of AGI over $15,000 to 35%, then 1 point per $4,000 over $150,000 on a joint return (per $2,000 over $75,000 otherwise) to 20%. Expense limits stay $3,000 / $6,000. For example, a joint return with $160,000 AGI and two children now gets 32% of $6,000 = $1,920, up from $1,200. The schedule comes from the IRS's **draft** 2026 Form 2441 instructions, so it's re-checked when the final form is out.
+- **QBI minimum deduction, 2026:** at least $400 when active qualified business income is at least $1,000. A new `income.business.material_participation` flag (default `true`) marks passive income, which doesn't qualify.
+
+### Added
+
+- Child tax credit returns now carry a warning that each qualifying child, and you (or one spouse on a joint return), are assumed to have a Social Security number valid for employment. ouch has no SSN inputs.
+
 ## [0.3.2] - 2026-11-27
 
 Adds the remaining Schedule 1-A deductions for 2025–2028 (rtrimble13/ouch#26), and their import from 2026 W-2s. Existing profiles compute exactly as before: these take new, optional inputs. (0.3.1 was never released on its own; its changes are listed here.)
