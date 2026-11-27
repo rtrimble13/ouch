@@ -302,4 +302,18 @@ def qbi_deduction(inp: TaxInput, taxable_before_qbi: Money,
             amount = tent_s
         deduction = minm(amount, overall_limit)
 
-    return QbiResult(deduction=deduction, qualified_business_income=qbi)
+    # §199A(i), 2026 onward (draft 2026 Form 8995 lines 15–17): the greater
+    # of the computed deduction and $400 when active QBI is at least $1,000.
+    # It applies even when the taxable-income limit cuts the deduction lower.
+    warnings: tuple[str, ...] = ()
+    m = q.minimum_deduction
+    if (m is not None and biz.material_participation
+            and qbi >= Money(m.active_qbi_threshold)
+            and deduction < Money(m.amount)):
+        deduction = Money(m.amount)
+        warnings = (f"QBI deduction raised to the ${m.amount:,.0f} minimum for "
+                    f"active qualified business income (assumes you materially "
+                    f"participate in the business)",)
+
+    return QbiResult(deduction=deduction, qualified_business_income=qbi,
+                     warnings=warnings)

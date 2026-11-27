@@ -913,6 +913,7 @@ Each person's tips plus overtime can't exceed their box 1 wages: both are alread
 | `qbi_w2_wages_paid` | For the wage limitation above the threshold |
 | `qbi_ubia` | Unadjusted basis immediately after acquisition |
 | `sstb` | Specified service trade or business |
+| `material_participation` | Default `true`. Whether you materially participate (§469(h)). From 2026, QBI of at least $1,000 from a business you materially participate in gets a QBI deduction of at least $400, even where the usual limits give less. Set `false` for passive income, which doesn't qualify |
 
 ### `[income.retirement]`
 
