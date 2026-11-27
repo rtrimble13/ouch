@@ -1,17 +1,52 @@
-# Colorado — 2025. UNVERIFIED placeholder. Flat rate on federal taxable
-# income (Colorado's actual starting point).
+# Colorado — 2025, from the CO DOR Individual Income Tax Guide (revised January 2026).
+# Flat rate on federal taxable income (Form 1040 line 15) with Colorado's
+# additions. Approximations: the state income tax addback ignores its
+# limitations; the deduction and QBI addbacks, which the guide gives for
+# "single" and "joint" filers, use the single amounts for head of household
+# and married filing separately; the pension/annuity subtraction ($20,000,
+# or $24,000 from 65) and the Social Security subtraction for ages 55–64
+# aren't modeled.
 meta:
   jurisdiction: CO
   year: 2025
   schema_version: 3
-  verified: false
-  source: ["CO DOR — income tax rate"]
+  verified: true
+  source:
+    - "CO DOR Individual Income Tax Guide (rev. January 2026), Part 2: 'Colorado income tax is based generally on federal taxable income'; Colorado Income Tax Rates table: 2025 4.4%"
+    - "Guide Part 3: state income tax addback; QBI deduction addback for AGI over $500,000 single / $1,000,000 joint; federal itemized or standard deduction above $12,000 single / $16,000 joint (2023–2025), $1,000 / $2,000 (2026 and later) for AGI over $300,000; overtime deduction addback from 2026, none for tips"
+    - "CO DOR Income Tax Topics: Social Security, Pensions, and Annuities (Jan 2025): taxable Social Security fully subtracted from age 65"
 
 regime: flat
 starting_point: federal_taxable
 rate: 0.044
 
 modifications:
+  additions:
+    - {id: state_income_tax_addback, label: "State income tax deducted federally", source_field: itemized_salt_income}
+    - id: qbi_addback
+      label: "Federal QBI deduction (high AGI)"
+      source_field: federal_qbi_deduction
+      min_agi:
+        single: 500_000
+        married_filing_jointly: 1_000_000
+        married_filing_separately: 500_000
+        head_of_household: 500_000
+        qualifying_surviving_spouse: 1_000_000
+    - id: deduction_addback
+      label: "Federal deduction above the Colorado limit (AGI over $300,000)"
+      source_field: federal_deduction
+      min_agi:
+        single: 300_000
+        married_filing_jointly: 300_000
+        married_filing_separately: 300_000
+        head_of_household: 300_000
+        qualifying_surviving_spouse: 300_000
+      less:
+        single: 12_000
+        married_filing_jointly: 16_000
+        married_filing_separately: 12_000
+        head_of_household: 12_000
+        qualifying_surviving_spouse: 16_000
   subtractions:
     - {id: social_security, label: "Social Security (65+)", source_field: taxable_social_security, min_age: 65}
 

@@ -1,6 +1,8 @@
 # Massachusetts — 2025. UNVERIFIED placeholder. Flat 5%; the 4% millionaire
 # surtax and the 8.5% short-term gains rate are not modeled in v1
 # (fidelity: approximate).
+# Not yet checked against the DOR's own publications (mass.gov refuses automated requests;
+# rtrimble13/ouch#28). Treat every figure here as a placeholder.
 meta:
   jurisdiction: MA
   year: 2025

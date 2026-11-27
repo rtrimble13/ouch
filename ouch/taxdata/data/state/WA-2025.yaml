@@ -1,14 +1,15 @@
-# Washington — 2025. No personal income tax on wages. NOTE: Washington's
-# capital gains excise tax (7% on long-term gains above an annual deduction)
-# is NOT modeled in v1 — flagged in notes so `regime: none` is not silently
-# wrong for investors (spec vignette 8).
+# Washington — 2025. No personal income tax on wages. Washington's capital
+# gains excise tax is NOT modeled: from tax year 2025 it's 7% of taxable
+# long-term gains up to $1 million and 9.9% above (WA DOR special notice,
+# June 30, 2025), after a standard deduction of $278,000 for 2025.
 meta:
   jurisdiction: WA
   year: 2025
   schema_version: 3
   verified: false
-  source: ["WA DOR — no personal income tax; capital gains excise tax RCW 82.87"]
-  notes: "WA capital gains excise tax on LTCG above the annual deduction is
-    not modeled — large long-term gains may owe WA tax not shown here."
+  source:
+    - "WA DOR special notice 'New tiered rates for Washington's capital gains tax' (June 30, 2025): 7% to $1,000,000, 9.9% above, from tax year 2025 (ESSB 5813; RCW 82.87.040)"
+    - "WA DOR 'Do you owe capital gains tax?': standard deduction $278,000 (2025), $290,000 (2026)"
+  notes: "WA capital gains excise tax (7%, or 9.9% on gains above $1 million) on long-term gains above the $278,000 standard deduction is not modeled: large long-term gains may owe WA tax not shown here. No primary source checked yet for the absence of a wage income tax, so the file stays unverified."
 
 regime: none

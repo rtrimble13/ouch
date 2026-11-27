@@ -1,11 +1,15 @@
-# New York City resident income tax — 2025. UNVERIFIED placeholder brackets.
+# New York City resident income tax — 2025, from NY DTF IT-201-I (2025).
+# The tax uses the NYC tax table below $65,000 of city taxable income; ouch
+# computes it from the rate schedule.
 meta:
   jurisdiction: NYC
   parent: NY
   year: 2025
   schema_version: 3
-  verified: false
-  source: ["NYC Dept. of Finance / NY IT-201 instructions"]
+  verified: true
+  source:
+    - "NY DTF IT-201-I (2025): New York City tax rate schedule (p. 40); lines 69 and 69a school tax credits"
+  notes: "School tax credits are applied against the city tax, not refunded beyond it. Their income test uses federal AGI less IRA distributions."
 
 regime: progressive
 applies_to: residents
@@ -13,30 +17,63 @@ starting_point: state_taxable
 
 brackets:
   single:
-    - {up_to: 12_000, rate: 0.03078}
-    - {up_to: 25_000, rate: 0.03762}
-    - {up_to: 50_000, rate: 0.03819}
-    - {up_to: null,   rate: 0.03876}
+    - {up_to: 12_000,      rate: 0.03078}
+    - {up_to: 25_000,      rate: 0.03762}
+    - {up_to: 50_000,      rate: 0.03819}
+    - {up_to: null,        rate: 0.03876}
   married_filing_jointly:
-    - {up_to: 21_600, rate: 0.03078}
-    - {up_to: 45_000, rate: 0.03762}
-    - {up_to: 90_000, rate: 0.03819}
-    - {up_to: null,   rate: 0.03876}
+    - {up_to: 21_600,      rate: 0.03078}
+    - {up_to: 45_000,      rate: 0.03762}
+    - {up_to: 90_000,      rate: 0.03819}
+    - {up_to: null,        rate: 0.03876}
   married_filing_separately:
-    - {up_to: 12_000, rate: 0.03078}
-    - {up_to: 25_000, rate: 0.03762}
-    - {up_to: 50_000, rate: 0.03819}
-    - {up_to: null,   rate: 0.03876}
+    - {up_to: 12_000,      rate: 0.03078}
+    - {up_to: 25_000,      rate: 0.03762}
+    - {up_to: 50_000,      rate: 0.03819}
+    - {up_to: null,        rate: 0.03876}
   head_of_household:
-    - {up_to: 14_400, rate: 0.03078}
-    - {up_to: 30_000, rate: 0.03762}
-    - {up_to: 60_000, rate: 0.03819}
-    - {up_to: null,   rate: 0.03876}
+    - {up_to: 14_400,      rate: 0.03078}
+    - {up_to: 30_000,      rate: 0.03762}
+    - {up_to: 60_000,      rate: 0.03819}
+    - {up_to: null,        rate: 0.03876}
   qualifying_surviving_spouse:
-    - {up_to: 21_600, rate: 0.03078}
-    - {up_to: 45_000, rate: 0.03762}
-    - {up_to: 90_000, rate: 0.03819}
-    - {up_to: null,   rate: 0.03876}
+    - {up_to: 21_600,      rate: 0.03078}
+    - {up_to: 45_000,      rate: 0.03762}
+    - {up_to: 90_000,      rate: 0.03819}
+    - {up_to: null,        rate: 0.03876}
 
 credits:
-  - {id: nyc_school_tax, type: refundable, amount: 63}
+  # Fixed amount: $125 joint or qualifying surviving spouse, $63 otherwise,
+  # for income of $250,000 or less (full-year residents).
+  - id: nyc_school_tax
+    type: refundable
+    amount_by_status:
+      single: 63
+      married_filing_jointly: 125
+      married_filing_separately: 63
+      head_of_household: 63
+      qualifying_surviving_spouse: 125
+    max_income: 250_000
+    income: agi_less_ira
+  # Rate reduction amount: 0.171% of city taxable income up to the first
+  # bracket, 0.228% above it, for income of $500,000 or less.
+  - id: nyc_school_tax_rate_reduction
+    type: refundable
+    max_income: 500_000
+    income: agi_less_ira
+    schedule:
+      single:
+        - {up_to: 12_000, rate: 0.00171}
+        - {up_to: null, rate: 0.00228}
+      married_filing_jointly:
+        - {up_to: 21_600, rate: 0.00171}
+        - {up_to: null, rate: 0.00228}
+      married_filing_separately:
+        - {up_to: 12_000, rate: 0.00171}
+        - {up_to: null, rate: 0.00228}
+      head_of_household:
+        - {up_to: 14_400, rate: 0.00171}
+        - {up_to: null, rate: 0.00228}
+      qualifying_surviving_spouse:
+        - {up_to: 21_600, rate: 0.00171}
+        - {up_to: null, rate: 0.00228}

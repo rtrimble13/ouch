@@ -110,18 +110,16 @@ def test_colorado_flat_on_federal_taxable(data_federal_only):
 
 
 def test_california_progressive(data_federal_only):
-    """CA: AGI 100,000 − 5,540 std = 94,460 taxable. Hand-computed through
-    the placeholder brackets:
-    1%×10,756 + 2%×14,743 + 4%×14,746 + 6%×15,621 + 8%×14,740
-    + 9.3%×(94,460−70,606) = 107.56+294.86+589.84+937.26+1,179.20+2,218.42
-    = 5,327.14."""
+    """CA: AGI 100,000 − 5,706 std = 94,294 taxable (FTB 2025 booklet).
+    Schedule X: 3,201.97 + 9.3% × (94,294 − 72,724) = 3,201.97 + 2,006.01
+    = 5,207.98, less the $153 personal exemption credit = 5,054.98."""
     data = pipeline.ResolvedData(federal=data_federal_only.federal,
                                  state=loader.load_state("CA", 2025))
     r = pipeline.run(make_input(
         taxpayer={"filing_status": "single", "state": "CA"},
         income={"wages": {"taxpayer_w2": "100000"}}), data,
         compute_marginals=False)
-    assert r.state.tax.round_cent() == Money("5327.14")
+    assert r.state.tax.round_cent() == Money("5054.98")
 
 
 def test_washington_none_with_gain_warning_in_notes():

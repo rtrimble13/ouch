@@ -56,6 +56,7 @@ class _FederalPass:
     standard_amount: Money
     qbi: Money
     schedule_1a: Money
+    overtime: Money
     line_12f: Money
     taxable_income: Money
     tax_ordinary: Money
@@ -266,6 +267,7 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                form_ref="Schedule 1-A Part V", authority="P.L. 119-21 (OBBBA)",
                inputs=("fed.agi",), warnings=senior.warnings)
     parts = ["fed.deduction.senior"] if senior.deduction > ZERO else []
+    overtime = ZERO
     form_parts = {"tips": "Part II", "overtime": "Part III",
                   "car_loan_interest": "Part IV"}
     for item in schedule_1a_items(inp, agi, fed):
@@ -286,6 +288,8 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                inputs=("fed.agi",), warnings=item.warnings)
         parts.append(f"fed.deduction.{item.key}")
         schedule_1a += item.amount
+        if item.key == "overtime":
+            overtime = item.amount
     if schedule_1a > ZERO:
         tb.add("fed.schedule_1a", "Schedule 1-A additional deductions",
                schedule_1a, jurisdiction="federal",
@@ -579,7 +583,8 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         tb=tb, total_income=total_income, agi=agi,
         adjustments_total=adjustments_total, deduction=deduction,
         deduction_mode=mode, itemized=itemized, standard_amount=std,
-        qbi=qbi.deduction, schedule_1a=schedule_1a, line_12f=line_12f,
+        qbi=qbi.deduction, schedule_1a=schedule_1a, overtime=overtime,
+        line_12f=line_12f,
         taxable_income=taxable_income,
         tax_ordinary=tax.ordinary, tax_preferential=tax.preferential,
         tax_special=tax.special, amt_add=amt_add,
@@ -635,6 +640,8 @@ def run(inp: TaxInput, data: ResolvedData, *,
             taxable_social_security=fp.taxable_ss,
             itemized_total=fp.itemized.total,
             itemized_salt_income=fp.itemized.salt_income_component,
+            deduction_taken=fp.deduction, qbi_deduction=fp.qbi,
+            overtime_deduction=fp.overtime,
         )
         if data.state is None:
             break

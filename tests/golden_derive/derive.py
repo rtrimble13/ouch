@@ -177,6 +177,8 @@ class Case:
     tips: D = ZERO
     overtime: D = ZERO
     car_interest: D = ZERO
+    state: str = "TX"
+    locality: str = ""
     withholding: D = ZERO
     notes: str = ""
 
@@ -309,6 +311,7 @@ def derive(c: Case, tables: Tables):
     # Schedule 1-A Part V
     senior = ZERO
     senior_only = ZERO
+    overtime_ded = ZERO
     n_sen = sum(born_65(b) for b in (c.tp_birth, c.sp_birth if joint else None))
     if n_sen and st != MFS:
         thr = D(SENIOR_THRESHOLD.get(st, 75_000))
@@ -333,6 +336,7 @@ def derive(c: Case, tables: Tables):
         log(f"- Schedule 1-A: tips {m(tips)} (Part II, MAGI under 150,000); overtime "
             f"{m(ot)} (Part III); car-loan interest {m(car)}")
         senior += tips + ot + car
+        overtime_ded = ot
         log(f"- **Schedule 1-A line 44 (Form 1040 line 13a): {m(senior)}**")
 
     # QBI
@@ -539,6 +543,13 @@ def derive(c: Case, tables: Tables):
     log(f"- ouch `federal_total_tax` (line 24 less refundable credits): **{m(fed_total)}**")
     log(f"- Payments (withholding): {m(c.withholding)} → balance {m(fed_total - c.withholding)}")
 
+    state_out, local_out, state_total = derive_state(
+        c, agi=agi, fed_taxable=taxable, fed_deduction=ded, qbi=qbi,
+        overtime=overtime_ded, log=log)
+    all_tax = fed_total + state_total
+    if c.state != "TX":
+        log(f"- **Total tax, all jurisdictions: {m(all_tax)}**; balance {m(all_tax - c.withholding)}")
+
     expected = {
         "total_income": total_income, "agi": agi, "deduction_taken": ded,
         "deduction_mode": mode, "qbi_deduction": qbi,
@@ -548,12 +559,130 @@ def derive(c: Case, tables: Tables):
         "tax_preferential": tax_pref, "amt_additional": amt, "se_tax": se_tax,
         "additional_medicare": addl, "niit": niit,
         "credits_nonrefundable": nonref, "credits_refundable": refundable,
-        "federal_total_tax": fed_total, "total_tax_all_jurisdictions": fed_total,
+        "federal_total_tax": fed_total, "total_tax_all_jurisdictions": all_tax,
         "total_payments": c.withholding,
-        "balance_due_or_refund": fed_total - c.withholding,
+        "balance_due_or_refund": all_tax - c.withholding,
     }
     out = {k: (v if isinstance(v, str) else f"{q(v):.2f}") for k, v in expected.items()}
+    if state_out is not None:
+        out["state"] = {k: (v if isinstance(v, str) else f"{q(v):.2f}") for k, v in state_out.items()}
+    if local_out is not None:
+        out["local"] = {k: (v if isinstance(v, str) else f"{q(v):.2f}") for k, v in local_out.items()}
     return out, L
+
+
+# --- States (2026 files). Sources:
+#   CA  FTB 2026 Form 540-ES Instructions (2026 worksheet: 2025 tax table,
+#       standard deduction $5,706 / $11,412, 2025 exemption credits); FTB 2025
+#       Personal Income Tax Booklet (Schedules X/Y/Z p. 75; lines 7–10, 32).
+#   NY  NY DTF IT-2105-I (2026): standard deduction table, dependent
+#       exemptions $1,000, 2026 NYS and NYC tax rates (p. 10), NYC school tax
+#       credits (lines 20–21).
+#   CO  CO DOR Individual Income Tax Guide (rev. January 2026): 4.4% (2025,
+#       carried to 2026), additions in Part 3.
+CA_X = [(0, "0", "0.01"), (11_079, "110.79", "0.02"), (26_264, "414.49", "0.04"),
+        (41_452, "1022.01", "0.06"), (57_542, "1987.41", "0.08"),
+        (72_724, "3201.97", "0.093"), (371_479, "30986.19", "0.103"),
+        (445_771, "38638.27", "0.113"), (742_953, "72219.84", "0.123")]
+CA_Y = [(0, "0", "0.01"), (22_158, "221.58", "0.02"), (52_528, "828.98", "0.04"),
+        (82_904, "2044.02", "0.06"), (115_084, "3974.82", "0.08"),
+        (145_448, "6403.94", "0.093"), (742_958, "61972.37", "0.103"),
+        (891_542, "77276.52", "0.113"), (1_485_906, "144439.65", "0.123")]
+CA_STD = {S: 5_706, MFS: 5_706, J: 11_412, HOH: 11_412, QSS: 11_412}
+CA_AGI_LIMIT = {S: 252_203, MFS: 252_203, J: 504_411, QSS: 504_411, HOH: 378_310}
+NY_STD = {S: 8_000, MFS: 8_000, J: 16_050, QSS: 16_050, HOH: 11_200}
+NY_SINGLE_2026 = [(0, "0", "0.039"), (8_500, "332", "0.044"), (11_700, "473", "0.0515"),
+                  (13_900, "586", "0.054"), (80_650, "4191", "0.059"),
+                  (215_400, "12141", "0.0685")]
+NYC_SINGLE = [(0, "0", "0.03078"), (12_000, "369", "0.03762"), (25_000, "858", "0.03819"),
+              (50_000, "1813", "0.03876")]
+
+
+def sched(x: D, rows) -> D:
+    over, base, rate = max((r for r in rows if x > r[0]), key=lambda r: r[0])
+    return D(base) + D(rate) * (x - over)
+
+
+def derive_state(c: Case, *, agi, fed_taxable, fed_deduction, qbi, overtime, log):
+    st = c.status
+    if c.state == "TX":
+        return None, None, ZERO
+    log("")
+    if c.state == "CA":
+        log("### California (Form 540)")
+        std = D(CA_STD[st])
+        taxable = agi - std
+        assert taxable >= 100_000, "below $100,000 California uses its tax table"
+        tax = sched(taxable, CA_Y if st in (J, QSS) else CA_X)
+        log(f"- Line 17 California AGI = federal AGI {m(agi)}; line 18 standard deduction {m(std)}; "
+            f"line 19 taxable {m(taxable)}")
+        log(f"- Line 31 tax (Schedule {'Y' if st in (J, QSS) else 'X'}): {m(tax)}")
+        n_filer = 2 if st in (J, QSS) else 1
+        n_dep = len(c.kids)
+        filer, dep = D(153 * n_filer), D(475 * n_dep)
+        excess = agi - CA_AGI_LIMIT[st]
+        if excess > 0:
+            steps = (excess / (1_250 if st == MFS else 2_500)).to_integral_value(ROUND_CEILING)
+            e = steps * 6
+            filer, dep = max(ZERO, filer - e * n_filer), max(ZERO, dep - e * n_dep)
+            log(f"- AGI Limitation Worksheet: {m(excess)} over {CA_AGI_LIMIT[st]:,} → "
+                f"{steps} steps × $6 = {m(e)} per credit")
+        credits = filer + dep
+        log(f"- Line 32 exemption credits: {n_filer} × 153 + {n_dep} × 475 after the "
+            f"limitation = {m(credits)}")
+        state_tax = max(ZERO, tax - credits)
+        log(f"- **Line 33 / 48 California tax: {m(state_tax)}**")
+        return ({"code": "CA", "agi": agi, "deduction": std, "taxable": taxable,
+                 "tax": state_tax}, None, state_tax)
+    if c.state == "NY":
+        assert st == S and not c.kids and agi <= 107_650
+        log("### New York State (IT-2105 worksheet, 2026)")
+        std = D(NY_STD[st])
+        taxable = agi - std
+        assert taxable >= 65_000, "below $65,000 New York uses its tax table"
+        tax = sched(taxable, NY_SINGLE_2026)
+        log(f"- New York AGI = federal AGI {m(agi)} (≤ $107,650, so the rate schedule "
+            f"applies directly); standard deduction {m(std)}; taxable {m(taxable)}")
+        log(f"- 2026 New York State tax rates, single: **{m(tax)}**")
+        local = None
+        city = ZERO
+        if c.locality == "NYC":
+            assert taxable >= 65_000
+            city_tax = sched(taxable, NYC_SINGLE)
+            fixed = D(63) if agi <= 250_000 else ZERO
+            rr = ((D(21) + D("0.00228") * (taxable - 12_000)) if taxable > 12_000
+                  else D("0.00171") * taxable) if agi <= 500_000 else ZERO
+            city = max(ZERO, city_tax - fixed - rr)
+            log(f"- New York City tax on {m(taxable)} (2026 NYC tax rates, single): {m(city_tax)}")
+            log(f"- School tax credit, fixed amount (income ≤ $250,000): {m(fixed)}; rate "
+                f"reduction amount 21 + 0.228% × ({m(taxable)} − 12,000) = {m(rr)}")
+            log(f"- **New York City tax after the school tax credits: {m(city)}**")
+            local = {"name": "NYC", "taxable": taxable, "tax": city}
+        return ({"code": "NY", "agi": agi, "deduction": std, "taxable": taxable,
+                 "tax": tax}, local, tax + city)
+    if c.state == "CO":
+        log("### Colorado (DR 0104, 2026 rules)")
+        adds = []
+        if overtime:
+            adds.append(("overtime deduction addback", overtime))
+        if agi > 300_000:
+            lim = D(2_000 if st == J else 1_000)
+            if fed_deduction > lim:
+                adds.append((f"deduction above the {m(lim)} limit (AGI over $300,000)",
+                             fed_deduction - lim))
+        if qbi and agi > (1_000_000 if st == J else 500_000):
+            adds.append(("QBI deduction addback", qbi))
+        total_add = sum((a for _, a in adds), ZERO)
+        taxable = fed_taxable + total_add
+        assert taxable >= 50_000, "below $50,000 Colorado uses its tax table"
+        tax = taxable * D("0.044")
+        log(f"- Federal taxable income {m(fed_taxable)}")
+        for label, a in adds:
+            log(f"- Addition: {label}: {m(a)}")
+        log(f"- Colorado taxable income {m(taxable)} × 4.4% = **{m(tax)}**")
+        return ({"code": "CO", "agi": taxable, "deduction": ZERO, "taxable": taxable,
+                 "tax": tax}, None, tax)
+    raise SystemExit(f"no state derivation for {c.state}")
 
 
 def care_rate(agi: D, st: str) -> D:
@@ -591,7 +720,9 @@ def eic_amount(c: Case, agi: D, earned: D, tables: Tables, log) -> D:
 
 def toml_profile(c: Case) -> str:
     out = ["schema_version = 2", "tax_year = 2026", "", "[taxpayer]",
-           f'filing_status = "{c.status}"', 'state = "TX"']
+           f'filing_status = "{c.status}"', f'state = "{c.state}"']
+    if c.locality:
+        out.append(f'locality = "{c.locality}"')
     if c.tp_birth:
         out.append(f'birth_date = {c.tp_birth}')
     if c.spouse:
@@ -777,6 +908,41 @@ CASES = [
          "Schedule 1-A Parts II–IV, car-loan interest in its phase-out",
          wages_tp=105_025, tips=6_000, overtime=4_000, car_interest=3_000,
          withholding=9_000),
+]
+
+STATE_NOTE = ("State figures: {src}. ouch's 2026 {code} file carries these "
+              "figures; the derivation types them from the source, not the file.")
+CASES += [
+    Case("2026_ca_mfj_two_children", "California: joint return, two children", J,
+         "CA progressive brackets (Schedule Y), standard deduction, personal and "
+         "dependent exemption credits", wages_tp=150_000, wages_sp=100_000,
+         spouse=True, kids=("2015-04-01", "2018-09-09"), state="CA",
+         withholding=40_000,
+         notes=STATE_NOTE.format(src="FTB 2026 Form 540-ES Instructions (2026 "
+             "estimated tax worksheet, which uses the 2025 tax table and exemption "
+             "credits) and the FTB 2025 Personal Income Tax Booklet", code="CA")),
+    Case("2026_ca_single_exemption_phaseout", "California: exemption credit phase-out", S,
+         "CA exemption credit AGI limitation ($6 per $2,500 over $252,203)",
+         wages_tp=300_000, state="CA", withholding=70_000,
+         notes=STATE_NOTE.format(src="FTB 2026 Form 540-ES Instructions and FTB 2025 "
+             "Booklet (line 32 AGI Limitation Worksheet)", code="CA")),
+    Case("2026_ny_nyc_single", "New York State and New York City resident", S,
+         "NY progressive (2026 rates), NYC tax on NY taxable income, NYC school "
+         "tax credits", wages_tp=100_025, state="NY", locality="NYC",
+         withholding=14_000,
+         notes=STATE_NOTE.format(src="NY DTF Instructions for Form IT-2105 (2026)",
+                                 code="NY and NYC")),
+    Case("2026_co_overtime_addback", "Colorado: overtime addback", S,
+         "CO flat rate on federal taxable income; 2026 overtime deduction addback",
+         wages_tp=120_025, overtime=6_000, state="CO", withholding=17_000,
+         notes=STATE_NOTE.format(src="CO DOR Individual Income Tax Guide (rev. "
+             "January 2026), Part 3; the 4.4% rate is 2025's, carried to 2026",
+             code="CO")),
+    Case("2026_co_high_income_deduction_addback", "Colorado: deduction addback over $300,000 AGI", S,
+         "CO addback of the federal standard deduction above $1,000 (2026) for "
+         "AGI over $300,000", wages_tp=400_000, state="CO", withholding=120_000,
+         notes=STATE_NOTE.format(src="CO DOR Individual Income Tax Guide (rev. "
+             "January 2026), Part 3", code="CO")),
 ]
 
 

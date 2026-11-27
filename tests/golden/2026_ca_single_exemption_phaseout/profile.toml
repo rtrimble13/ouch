@@ -1,0 +1,12 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "CA"
+
+[income.wages]
+taxpayer_w2 = 300000
+
+[payments.withholding]
+federal_ytd = 70000

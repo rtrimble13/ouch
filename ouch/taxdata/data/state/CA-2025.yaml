@@ -1,14 +1,21 @@
-# California — 2025. UNVERIFIED placeholder brackets drawn from recent FTB
-# schedules; the mental-health surtax above $1M and CA-specific conformity
-# differences are not modeled (fidelity: approximate). Verify against the
-# current FTB rate schedules before marking verified.
+# California — 2025, from the FTB 2025 Personal Income Tax Booklet (Form 540).
+# The 1% Behavioral Health Services Tax on taxable income over $1,000,000
+# (Form 540 line 62) is folded into the brackets as a split at $1,000,000.
+# Approximations: the Tax Table below $100,000 is computed from the rate
+# schedules; itemized deductions start from the federal Schedule A less state
+# income tax, so California's own itemized rules (no SALT cap, its own
+# limitation) aren't applied.
 meta:
   jurisdiction: CA
   year: 2025
   schema_version: 3
-  verified: false
-  source: ["CA FTB rate schedules"]
-  notes: "1% mental-health surtax above $1M not modeled in v1."
+  verified: true
+  source:
+    - "FTB 2025 Personal Income Tax Booklet: 2025 California Tax Rate Schedules X, Y, Z (p. 75)"
+    - "FTB 2025 Booklet, line 18 California Standard Deduction Chart: $5,706 / $11,412"
+    - "FTB 2025 Booklet, Form 540 lines 7–10 ($153 personal, blind and senior; $475 dependent) and line 32 AGI Limitation Worksheet ($252,203 / $504,411 / $378,310; $6 per $2,500, $1,250 MFS)"
+    - "FTB 2025 Booklet, line 62 Behavioral Health Services Tax: 1% of taxable income over $1,000,000"
+    - "FTB 2025 Booklet, Differences between California and Federal Law: conformity to the IRC as of January 1, 2025; California generally does not conform to the OBBBA"
 
 regime: progressive
 starting_point: federal_agi
@@ -20,62 +27,83 @@ modifications:
 
 brackets:
   single:
-    - {up_to: 10_756,   rate: 0.01}
-    - {up_to: 25_499,   rate: 0.02}
-    - {up_to: 40_245,   rate: 0.04}
-    - {up_to: 55_866,   rate: 0.06}
-    - {up_to: 70_606,   rate: 0.08}
-    - {up_to: 360_659,  rate: 0.093}
-    - {up_to: 432_787,  rate: 0.103}
-    - {up_to: 721_314,  rate: 0.113}
-    - {up_to: null,     rate: 0.123}
+    - {up_to: 11_079,     rate: 0.01}
+    - {up_to: 26_264,     rate: 0.02}
+    - {up_to: 41_452,     rate: 0.04}
+    - {up_to: 57_542,     rate: 0.06}
+    - {up_to: 72_724,     rate: 0.08}
+    - {up_to: 371_479,    rate: 0.093}
+    - {up_to: 445_771,    rate: 0.103}
+    - {up_to: 742_953,    rate: 0.113}
+    - {up_to: 1_000_000,  rate: 0.123}
+    - {up_to: null,       rate: 0.133}
   married_filing_jointly:
-    - {up_to: 21_512,   rate: 0.01}
-    - {up_to: 50_998,   rate: 0.02}
-    - {up_to: 80_490,   rate: 0.04}
-    - {up_to: 111_732,  rate: 0.06}
-    - {up_to: 141_212,  rate: 0.08}
-    - {up_to: 721_318,  rate: 0.093}
-    - {up_to: 865_574,  rate: 0.103}
-    - {up_to: 1_442_628, rate: 0.113}
-    - {up_to: null,     rate: 0.123}
+    - {up_to: 22_158,     rate: 0.01}
+    - {up_to: 52_528,     rate: 0.02}
+    - {up_to: 82_904,     rate: 0.04}
+    - {up_to: 115_084,    rate: 0.06}
+    - {up_to: 145_448,    rate: 0.08}
+    - {up_to: 742_958,    rate: 0.093}
+    - {up_to: 891_542,    rate: 0.103}
+    - {up_to: 1_000_000,  rate: 0.113}
+    - {up_to: 1_485_906,  rate: 0.123}
+    - {up_to: null,       rate: 0.133}
   married_filing_separately:
-    - {up_to: 10_756,   rate: 0.01}
-    - {up_to: 25_499,   rate: 0.02}
-    - {up_to: 40_245,   rate: 0.04}
-    - {up_to: 55_866,   rate: 0.06}
-    - {up_to: 70_606,   rate: 0.08}
-    - {up_to: 360_659,  rate: 0.093}
-    - {up_to: 432_787,  rate: 0.103}
-    - {up_to: 721_314,  rate: 0.113}
-    - {up_to: null,     rate: 0.123}
+    - {up_to: 11_079,     rate: 0.01}
+    - {up_to: 26_264,     rate: 0.02}
+    - {up_to: 41_452,     rate: 0.04}
+    - {up_to: 57_542,     rate: 0.06}
+    - {up_to: 72_724,     rate: 0.08}
+    - {up_to: 371_479,    rate: 0.093}
+    - {up_to: 445_771,    rate: 0.103}
+    - {up_to: 742_953,    rate: 0.113}
+    - {up_to: 1_000_000,  rate: 0.123}
+    - {up_to: null,       rate: 0.133}
   head_of_household:
-    - {up_to: 21_527,   rate: 0.01}
-    - {up_to: 51_000,   rate: 0.02}
-    - {up_to: 65_744,   rate: 0.04}
-    - {up_to: 81_364,   rate: 0.06}
-    - {up_to: 96_107,   rate: 0.08}
-    - {up_to: 490_493,  rate: 0.093}
-    - {up_to: 588_593,  rate: 0.103}
-    - {up_to: 980_987,  rate: 0.113}
-    - {up_to: null,     rate: 0.123}
+    - {up_to: 22_173,     rate: 0.01}
+    - {up_to: 52_530,     rate: 0.02}
+    - {up_to: 67_716,     rate: 0.04}
+    - {up_to: 83_805,     rate: 0.06}
+    - {up_to: 98_990,     rate: 0.08}
+    - {up_to: 505_208,    rate: 0.093}
+    - {up_to: 606_251,    rate: 0.103}
+    - {up_to: 1_000_000,  rate: 0.113}
+    - {up_to: 1_010_417,  rate: 0.123}
+    - {up_to: null,       rate: 0.133}
   qualifying_surviving_spouse:
-    - {up_to: 21_512,   rate: 0.01}
-    - {up_to: 50_998,   rate: 0.02}
-    - {up_to: 80_490,   rate: 0.04}
-    - {up_to: 111_732,  rate: 0.06}
-    - {up_to: 141_212,  rate: 0.08}
-    - {up_to: 721_318,  rate: 0.093}
-    - {up_to: 865_574,  rate: 0.103}
-    - {up_to: 1_442_628, rate: 0.113}
-    - {up_to: null,     rate: 0.123}
+    - {up_to: 22_158,     rate: 0.01}
+    - {up_to: 52_528,     rate: 0.02}
+    - {up_to: 82_904,     rate: 0.04}
+    - {up_to: 115_084,    rate: 0.06}
+    - {up_to: 145_448,    rate: 0.08}
+    - {up_to: 742_958,    rate: 0.093}
+    - {up_to: 891_542,    rate: 0.103}
+    - {up_to: 1_000_000,  rate: 0.113}
+    - {up_to: 1_485_906,  rate: 0.123}
+    - {up_to: null,       rate: 0.133}
 
 standard_deduction:
-  single: 5_540
-  married_filing_jointly: 11_080
-  married_filing_separately: 5_540
-  head_of_household: 11_080
-  qualifying_surviving_spouse: 11_080
+  single: 5_706
+  married_filing_jointly: 11_412
+  married_filing_separately: 5_706
+  head_of_household: 11_412
+  qualifying_surviving_spouse: 11_412
+
+exemption_credits:
+  personal: 153
+  senior: 153
+  blind: 153
+  dependent: 475
+  phaseout:
+    threshold:
+      single: 252_203
+      married_filing_jointly: 504_411
+      married_filing_separately: 252_203
+      head_of_household: 378_310
+      qualifying_surviving_spouse: 504_411
+    step: 2_500
+    step_mfs: 1_250
+    reduction_per_step: 6
 
 itemized:
   allowed: true

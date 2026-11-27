@@ -2,6 +2,8 @@
 # that real PA taxes eight income classes with no standard deduction and no
 # loss netting across classes — modeled here as flat on federal AGI, fidelity
 # approximate.
+# Not yet checked against the DOR's own publications (pa.gov isn't reachable from the tooling;
+# rtrimble13/ouch#28). Treat every figure here as a placeholder.
 meta:
   jurisdiction: PA
   year: 2026
