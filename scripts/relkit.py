@@ -521,7 +521,16 @@ def cmd_release(args) -> int:
         return 1
     for missed, sha in missed_versions(args.root, version):
         print(f"{tag_for(missed)} reached main at {sha[:12]} but was never released; catching up")
-        publish_missed(args.root, missed, sha, args.out, args.dry_run)
+        try:
+            publish_missed(args.root, missed, sha, args.out, args.dry_run)
+        except (subprocess.CalledProcessError, RuntimeError, GitError) as exc:
+            # A catch-up must never block the current version. The workflow's
+            # GITHUB_TOKEN can be refused a tag at an older commit (HTTP 403),
+            # likely when that commit's workflow files differ from the
+            # current ones; a maintainer's own `gh` login can publish it.
+            print(f"::warning::{tag_for(missed)} could not be released ({exc}). "
+                  f"Publish it with your own gh login: git checkout main && "
+                  f"python scripts/relkit.py release")
     if is_released(args.root, version):
         print(f"{tag_for(version)} is already released; nothing to do")
         return 0

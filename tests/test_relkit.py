@@ -296,6 +296,20 @@ def test_release_catches_up_a_version_that_was_never_released(repo, capsys):
     assert git(repo, "worktree", "list").count("\n") == 1   # temporary tree removed
 
 
+def test_a_failed_catch_up_does_not_block_the_current_release(repo, capsys, monkeypatch):
+    git(repo, "tag", "v0.1.0")
+    _release_on_main(repo, "0.2.0", section("0.2.0") + section("0.1.0"))
+    _release_on_main(repo, "0.3.0", section("0.3.0") + section("0.2.0") + section("0.1.0"))
+
+    def refuse(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, ["gh", "release", "create"])
+    monkeypatch.setattr(relkit, "publish_missed", refuse)
+    assert relkit.main(["--root", str(repo), "release", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "::warning::v0.2.0 could not be released" in out
+    assert "would release v0.3.0" in out
+
+
 def test_catch_up_runs_even_when_the_current_version_is_tagged(repo, capsys):
     git(repo, "tag", "v0.1.0")
     _release_on_main(repo, "0.2.0", section("0.2.0") + section("0.1.0"))
