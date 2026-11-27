@@ -1,0 +1,17 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+
+[income.wages]
+taxpayer_w2 = 105025
+taxpayer_qualified_tips = 6000
+taxpayer_qualified_overtime = 4000
+
+[deductions]
+car_loan_interest = 3000
+
+[payments.withholding]
+federal_ytd = 9000

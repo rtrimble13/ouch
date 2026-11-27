@@ -1,0 +1,16 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+
+[income.wages]
+taxpayer_w2 = 200000
+
+[income.business]
+schedule_c_net = 30000
+qbi_eligible_income = 30000
+
+[payments.withholding]
+federal_ytd = 48000

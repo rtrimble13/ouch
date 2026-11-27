@@ -1,0 +1,17 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+
+[income.wages]
+taxpayer_w2 = 80075
+
+[income.investment]
+short_term_gains = 2000
+long_term_gains = -9000
+capital_loss_carryforward = 4000
+
+[payments.withholding]
+federal_ytd = 8000

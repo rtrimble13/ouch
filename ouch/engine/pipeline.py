@@ -464,12 +464,16 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         # §68 doesn't apply for AMT (§56(b)(1)(F)), so AMTI gets back the
         # reduction along with the SALT addback.
         itemized.salt - limitation if mode == "itemized" else ZERO,
-        status, fed.amt, fed.preferential_brackets[status], regular_tax)
+        status, fed.amt, fed.preferential_brackets[status], regular_tax,
+        regular_ordinary=maxm(ZERO, taxable_income - pref_income
+                              - netting.unrecap_1250 - netting.collectibles),
+        other_addbacks=senior.deduction)
     if amt_add > ZERO:
         tb.add("fed.amt.additional", "Alternative minimum tax (excess)",
                amt_add, jurisdiction="federal",
                rule="tentative minimum tax over regular tax; AMTI approximated "
-                    "as taxable income plus standard/SALT addback",
+                    "as taxable income plus the standard/SALT addback and "
+                    "the Schedule 1-A senior deduction",
                form_ref="Form 6251", authority="IRC §55",
                inputs=("fed.taxable",), fidelity=Fidelity.APPROXIMATE)
     elif regular_tax > ZERO and tmt > regular_tax * Decimal("0.9"):
@@ -531,9 +535,11 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     amt_credit_used = ZERO
     carryover = Money(inp.carryovers.amt_credit)
     if carryover > ZERO and amt_add == ZERO:
-        headroom = maxm(ZERO, regular_tax - tmt)
+        # Form 8801 lines 22–25: regular tax less the other nonrefundable
+        # credits (Form 1040 line 19, Schedule 3 lines 1–6z), over TMT.
         liability_left = (income_tax_liability - credits.nonrefundable_used)
-        amt_credit_used = minm(carryover, headroom, maxm(liability_left, ZERO))
+        headroom = maxm(ZERO, liability_left - tmt)
+        amt_credit_used = minm(carryover, headroom)
         if amt_credit_used > ZERO:
             tb.add("fed.credits.amt", "Minimum tax credit (AMT carryforward)",
                    amt_credit_used, jurisdiction="federal",

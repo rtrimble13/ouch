@@ -6,6 +6,17 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-27
+
+Fixes found by the new independent golden fixtures (rtrimble13/ouch#23). Each was checked against the IRS form text. **Estimates change** for some returns with capital gains or qualified dividends, for AMT filers with them, for seniors carrying an AMT credit, and for anyone using an AMT credit carryforward alongside other credits. 2025 returns are corrected too.
+
+### Fixed
+
+- **Capital gains just above the 0% breakpoint:** the tax is now the smaller of the Qualified Dividends and Capital Gain Tax Worksheet result and the tax on all taxable income as ordinary income (worksheet line 25). Gains taxed at 15% while still inside the 12% bracket were taxed too much: in 2026 that's taxable income between $49,450 and $50,400 single ($98,900–$100,800 joint). Example: single, $49,525 ordinary income plus a $600 gain owed $5,785; it's $5,767.
+- **AMT with capital gains:** Form 6251 Part III now measures the 0% and 15% breakpoints from regular-tax ordinary income (lines 20 and 27), not the AMT ordinary base. Example: single, $150,000 wages and $450,000 long-term gain in 2026: AMT is $3,840, not $2,640.
+- **AMT and the senior deduction:** the Schedule 1-A deduction for seniors is added back to AMT income (Form 6251 line 1a). That raises the tentative minimum tax, which can lower an AMT credit used this year.
+- **AMT credit carryforward:** the credit is now limited to regular tax *less other nonrefundable credits* (such as the child tax credit) over the tentative minimum tax (Form 8801 line 22). It was too large by up to the amount of those credits.
+
 ## [0.5.0] - 2026-11-27
 
 2026 charitable changes and the overall limit on itemized deductions (rtrimble13/ouch#24). **2026 estimates change** for itemizers who give to charity, for non-itemizers who give cash, and for itemizers in the top bracket.

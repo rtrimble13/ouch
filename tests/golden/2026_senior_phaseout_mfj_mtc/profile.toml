@@ -1,0 +1,22 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "TX"
+birth_date = 1958-04-01
+
+[spouse]
+birth_date = 1960-09-30
+
+[income.wages]
+taxpayer_w2 = 120000
+
+[income.retirement]
+pension = 80000
+
+[carryovers]
+amt_credit = 12000
+
+[payments.withholding]
+federal_ytd = 15000
