@@ -170,6 +170,7 @@ class ItemizedResult:
     salt_cap_reduced: bool   # True when the high-income phase-down lowered it
     mortgage_interest: Money
     charitable: Money
+    charitable_floor: Money  # gifts disallowed by the 2026 0.5%-of-AGI floor
     investment_interest: Money
     other: Money
 
@@ -228,6 +229,15 @@ def itemized_deduction(inp: TaxInput, agi: Money, salt_income_estimate: Money,
 
     charitable = (minm(Money(it.charitable_cash), agi * rules.charitable_agi_limits.cash)
                   + minm(Money(it.charitable_noncash), agi * rules.charitable_agi_limits.noncash))
+    # 2026 onward: only gifts above 0.5% of AGI are deductible (Form 1040
+    # instructions (2026), What's New; 2026 Form 1040-ES). Applied to the
+    # total after the AGI-percentage limits. The final Schedule A worksheet
+    # isn't published yet, so the order is approximate when those limits
+    # also bind. What's disallowed carries forward; ouch doesn't track it.
+    charitable_floor = ZERO
+    if rules.charitable_floor_agi_pct is not None and charitable > ZERO:
+        charitable_floor = minm(charitable, agi * rules.charitable_floor_agi_pct)
+        charitable -= charitable_floor
 
     inv_interest = minm(Money(it.investment_interest),
                         maxm(ordinary_investment_income, ZERO))
@@ -238,8 +248,42 @@ def itemized_deduction(inp: TaxInput, agi: Money, salt_income_estimate: Money,
         salt_income_component=salt_income_deducted, salt_capped=salt_capped,
         salt_cap=cap, salt_cap_reduced=cap < full_cap,
         mortgage_interest=mortgage, charitable=charitable,
+        charitable_floor=charitable_floor,
         investment_interest=inv_interest, other=Money(it.other),
     )
+
+
+def nonitemizer_charitable(inp: TaxInput, fed: FederalData) -> Money:
+    """Form 1040 line 12f (2026 onward): cash gifts, up to $1,000 ($2,000 on
+    a joint return), for filers who don't itemize. Gifts to donor-advised
+    funds and §509(a)(3) organizations, noncash gifts and carryovers don't
+    qualify (draft 2026 Form 1040 instructions, line 12f)."""
+    sec = fed.itemized.nonitemizer_charitable
+    if sec is None:
+        return ZERO
+    it = inp.deductions.itemized
+    eligible = maxm(ZERO, Money(it.charitable_cash) - Money(it.charitable_cash_daf))
+    joint = inp.taxpayer.filing_status == FilingStatus.MARRIED_FILING_JOINTLY
+    return minm(eligible, Money(sec.mfj_amount if joint else sec.amount))
+
+
+def itemized_limitation(itemized_total: Money, income_before_itemized: Money,
+                        status: FilingStatus, fed: FederalData) -> Money:
+    """The 2026 §68 reduction of itemized deductions: ``rate`` × the lesser
+    of the itemized total and the income above the 37%-bracket threshold.
+
+    ``income_before_itemized`` is AGI less the Schedule 1-A and QBI
+    deductions (draft 2026 Schedule A line 18: "Form 1040 … line 11b, minus
+    the amounts on lines 13a and 13b"). The rate and thresholds are from the
+    2026 Form 1040-ES; the Itemized Deductions Worksheet isn't published.
+    """
+    lim = fed.itemized.limitation
+    if lim is None or itemized_total <= ZERO:
+        return ZERO
+    excess = income_before_itemized - Money(lim.threshold[status])
+    if excess <= ZERO:
+        return ZERO
+    return minm(itemized_total, excess) * lim.rate
 
 
 @dataclass(frozen=True)

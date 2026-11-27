@@ -151,6 +151,10 @@ class ItemizedDeductions(_Frozen):
     real_estate_tax: Decimal = NonNeg
     personal_property_tax: Decimal = NonNeg
     charitable_cash: Decimal = NonNeg
+    # The part of charitable_cash given to donor-advised funds or §509(a)(3)
+    # supporting organizations: deductible when itemizing, but not for the
+    # 2026 non-itemizer deduction (Form 1040 line 12f).
+    charitable_cash_daf: Decimal = NonNeg
     charitable_noncash: Decimal = NonNeg
     medical_expenses: Decimal = NonNeg
     investment_interest: Decimal = NonNeg
@@ -272,6 +276,11 @@ class TaxInput(_Frozen):
                     f"{who} qualified tips + overtime ({tips + overtime}) exceed "
                     f"{who} W-2 box 1 wages ({box1}); both are part of box 1 "
                     f"wages, so set income.wages.{who}_w2 to include them")
+        it = self.deductions.itemized
+        if it.charitable_cash_daf > it.charitable_cash:
+            raise ValueError(
+                "deductions.itemized.charitable_cash_daf is part of "
+                "charitable_cash and can't exceed it")
         inv = self.income.investment
         if inv.in_state_muni_interest > inv.tax_exempt_interest:
             raise ValueError(

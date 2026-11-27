@@ -162,7 +162,9 @@ def test_trace_lines_and_taxable_inputs(data_federal_only):
     assert senior.form_ref == "Schedule 1-A Part V"
     assert "× 1 qualifying person" in senior.rule
     total = r.trace.get("fed.schedule_1a")
-    assert total.form_ref == "1040 line 13b"
+    # Schedule 1-A is Form 1040 line 13b for 2025 and 13a from 2026 (draft
+    # 2026 Form 1040: "Lines 13a and 13b order flipped").
+    assert total.form_ref == "Form 1040 line 13 (13b for 2025, 13a from 2026)"
     assert total.inputs == ("fed.deduction.senior",)
     taxable = r.trace.get("fed.taxable")
     assert "fed.schedule_1a" in taxable.inputs

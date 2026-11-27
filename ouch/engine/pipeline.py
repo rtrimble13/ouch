@@ -12,9 +12,11 @@ from decimal import Decimal
 
 from ouch.engine import setax
 from ouch.engine.credits import compute_credits
-from ouch.engine.deductions import (ItemizedResult, itemized_deduction,
-                                    qbi_deduction, schedule_1a_items,
-                                    senior_deduction, standard_deduction)
+from ouch.engine.deductions import (ItemizedResult, QbiResult,
+                                    itemized_deduction, itemized_limitation,
+                                    nonitemizer_charitable, qbi_deduction,
+                                    schedule_1a_items, senior_deduction,
+                                    standard_deduction)
 from ouch.engine.federal import amt_additional, federal_income_tax
 from ouch.engine.income import net_capital
 from ouch.engine.payments import project_payments, safe_harbor
@@ -54,6 +56,7 @@ class _FederalPass:
     standard_amount: Money
     qbi: Money
     schedule_1a: Money
+    line_12f: Money
     taxable_income: Money
     tax_ordinary: Money
     tax_preferential: Money
@@ -242,44 +245,10 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     if agi > total_income:
         raise InvariantError("AGI exceeds total income")
 
-    # 6. Deduction: standard vs. itemized ------------------------------------
-    std = standard_deduction(inp, fed)
-    itemized = itemized_deduction(inp, agi, salt_estimate,
-                                  interest + nonqualified_div, fed)
-    mode_setting = inp.deductions.mode
-    if mode_setting == DeductionMode.STANDARD:
-        mode, deduction = "standard", std
-    elif mode_setting == DeductionMode.ITEMIZED:
-        mode, deduction = "itemized", itemized.total
-    elif itemized.total > std:
-        mode, deduction = "itemized", itemized.total
-    else:
-        mode, deduction = "standard", std
-    crossover = itemized.total - std
-    salt_note = ""
-    if itemized.salt_cap_reduced:
-        sc = fed.itemized.salt_cap
-        assert sc.phasedown is not None
-        salt_note = (
-            f"; SALT cap ${itemized.salt_cap.round_dollar().amount:,.0f} "
-            f"(${sc.for_status(status):,.0f} less "
-            f"{(sc.phasedown.rate * 100).normalize():f}% of MAGI over "
-            f"${sc.phasedown.threshold.for_status(status):,.0f}, floor "
-            f"${sc.phasedown.floor.for_status(status):,.0f})")
-    tb.add("fed.deduction", f"Deduction ({mode})", deduction,
-           jurisdiction="federal",
-           rule=(f"max(standard ${std.round_dollar().amount:,.0f}, itemized "
-                 f"${itemized.total.round_dollar().amount:,.0f})"
-                 if mode_setting == DeductionMode.AUTO
-                 else f"forced {mode}") + salt_note,
-           form_ref="1040 line 12", authority="IRC §63",
-           inputs=("fed.agi",),
-           warnings=((f"itemizing trails the standard deduction by "
-                      f"${(-crossover).round_dollar().amount:,.0f}",)
-                     if mode == "standard" and itemized.total > ZERO else ()))
-
-    # 6b. Schedule 1-A additional deductions (1040 line 13b) -----------------
-    # Below AGI and available whether or not the filer itemizes.
+    # 6a. Schedule 1-A additional deductions -----------------------------------
+    # Below AGI, available whether or not the filer itemizes, and dependent on
+    # AGI only, so they're settled before the standard/itemized choice (which
+    # the §68 limitation needs them for).
     senior = senior_deduction(inp, agi, fed)  # MAGI = AGI (no exclusion inputs)
     warnings.extend(senior.warnings)
     schedule_1a = senior.deduction
@@ -321,15 +290,115 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         tb.add("fed.schedule_1a", "Schedule 1-A additional deductions",
                schedule_1a, jurisdiction="federal",
                rule="sum of Schedule 1-A deductions",
-               form_ref="1040 line 13b", authority="Schedule 1-A Part VI",
-               inputs=tuple(parts))
+               form_ref="Form 1040 line 13 (13b for 2025, 13a from 2026)",
+               authority="Schedule 1-A Part VI", inputs=tuple(parts))
+
+    def qbi_given(line_12: Money) -> QbiResult:
+        # Form 8995 line 11: taxable income before QBI is AGI less lines 12
+        # (12e and 12f) and the Schedule 1-A deductions.
+        return qbi_deduction(inp, maxm(ZERO, agi - line_12 - schedule_1a),
+                             pref_income, se.se_deduction, se_health, fed)
+
+    # 6. Deduction: standard vs. itemized ------------------------------------
+    std = standard_deduction(inp, fed)
+    itemized = itemized_deduction(inp, agi, salt_estimate,
+                                  interest + nonqualified_div, fed)
+    # 2026 onward: cash gifts are deductible on line 12f without itemizing.
+    line_12f = nonitemizer_charitable(inp, fed)
+    # 2026 onward: §68 reduces itemized deductions in the top bracket. It
+    # "will not apply when figuring any QBID" (2026 Form 1040-ES), so the
+    # QBI here, and the one actually claimed when itemizing, uses the
+    # unreduced itemized total.
+    limitation = ZERO
+    if fed.itemized.limitation is not None and itemized.total > ZERO:
+        qbi_itemizing = qbi_given(itemized.total)
+        limitation = itemized_limitation(
+            itemized.total, agi - schedule_1a - qbi_itemizing.deduction,
+            status, fed)
+    itemized_allowed = itemized.total - limitation
+
+    mode_setting = inp.deductions.mode
+    if mode_setting == DeductionMode.STANDARD:
+        mode = "standard"
+    elif mode_setting == DeductionMode.ITEMIZED:
+        mode = "itemized"
+    elif itemized_allowed > std + line_12f:
+        mode = "itemized"
+    else:
+        mode = "standard"
+    deduction = itemized_allowed if mode == "itemized" else std
+    line_12f = line_12f if mode == "standard" else ZERO
+    crossover = itemized_allowed - (std + line_12f)
+    salt_note = ""
+    if itemized.salt_cap_reduced:
+        sc = fed.itemized.salt_cap
+        assert sc.phasedown is not None
+        salt_note = (
+            f"; SALT cap ${itemized.salt_cap.round_dollar().amount:,.0f} "
+            f"(${sc.for_status(status):,.0f} less "
+            f"{(sc.phasedown.rate * 100).normalize():f}% of MAGI over "
+            f"${sc.phasedown.threshold.for_status(status):,.0f}, floor "
+            f"${sc.phasedown.floor.for_status(status):,.0f})")
+    if itemized.charitable_floor > ZERO:
+        salt_note += (f"; charitable gifts less "
+                      f"${itemized.charitable_floor.round_dollar().amount:,.0f} "
+                      f"(0.5%-of-AGI floor)")
+    if limitation > ZERO:
+        salt_note += (f"; itemized reduced by "
+                      f"${limitation.round_dollar().amount:,.0f} (§68)")
+    deduction_warnings: list[str] = []
+    if mode == "standard" and itemized_allowed > ZERO:
+        deduction_warnings.append(
+            f"itemizing trails the standard deduction by "
+            f"${(-crossover).round_dollar().amount:,.0f}")
+    if mode == "itemized" and itemized.charitable_floor > ZERO:
+        deduction_warnings.append(
+            f"${itemized.charitable_floor.round_dollar().amount:,.0f} of "
+            f"charitable gifts fall under the 0.5%-of-AGI floor; that amount "
+            f"carries forward to later years, which ouch doesn't track")
+    warnings.extend(deduction_warnings)
+    tb.add("fed.deduction", f"Deduction ({mode})", deduction,
+           jurisdiction="federal",
+           rule=(f"max(standard ${std.round_dollar().amount:,.0f}"
+                 + (f" + ${line_12f.round_dollar().amount:,.0f} line 12f"
+                    if line_12f > ZERO else "")
+                 + f", itemized ${itemized_allowed.round_dollar().amount:,.0f})"
+                 if mode_setting == DeductionMode.AUTO
+                 else f"forced {mode}") + salt_note,
+           form_ref="1040 line 12", authority="IRC §63",
+           inputs=("fed.agi",), warnings=tuple(deduction_warnings))
+    if limitation > ZERO and mode == "itemized":
+        lim = fed.itemized.limitation
+        tb.add("fed.deduction.itemized_limitation",
+               "Overall limitation on itemized deductions", limitation,
+               jurisdiction="federal",
+               rule=(f"{(lim.rate * 100).normalize():f}% × lesser of itemized "
+                     f"${itemized.total.round_dollar().amount:,.0f} and income "
+                     f"(AGI less Schedule 1-A and QBI) over "
+                     f"${lim.threshold[status]:,.0f}"),
+               form_ref="Schedule A line 18 (Itemized Deductions Worksheet)",
+               authority="IRC §68 (P.L. 119-21)", inputs=("fed.agi",),
+               fidelity=Fidelity.APPROXIMATE,
+               warnings=("rate and thresholds from the 2026 Form 1040-ES; the "
+                         "Schedule A worksheet isn't published yet",))
+    if line_12f > ZERO:
+        tb.add("fed.deduction.charitable_nonitemizer",
+               "Charitable deduction for non-itemizers", line_12f,
+               jurisdiction="federal",
+               rule=(f"cash gifts (not to donor-advised funds or supporting "
+                     f"organizations), up to "
+                     f"${fed.itemized.nonitemizer_charitable.mfj_amount if status == FilingStatus.MARRIED_FILING_JOINTLY else fed.itemized.nonitemizer_charitable.amount:,.0f}"),  # type: ignore[union-attr]
+               form_ref="1040 line 12f", authority="P.L. 119-21 (OBBBA)",
+               inputs=("fed.agi",))
+        warnings.append("charitable deduction for non-itemizers assumes the cash "
+                        "gifts went to qualifying charities; enter gifts to "
+                        "donor-advised funds or supporting organizations as "
+                        "charitable_cash_daf")
 
     # 7. QBI deduction -------------------------------------------------------
-    # Form 8995 taxable income before QBI is after the line 12 and line 13b
-    # deductions.
-    taxable_before_qbi = maxm(ZERO, agi - deduction - schedule_1a)
-    qbi = qbi_deduction(inp, taxable_before_qbi, pref_income,
-                        se.se_deduction, se_health, fed)
+    # When itemizing, QBI uses the itemized total before §68.
+    qbi = qbi_given((itemized.total if mode == "itemized" else deduction) + line_12f)
+    taxable_before_qbi = maxm(ZERO, agi - deduction - line_12f - schedule_1a)
     warnings.extend(qbi.warnings)
     if qbi.deduction > ZERO:
         tb.add("fed.qbi", "QBI deduction", qbi.deduction,
@@ -346,10 +415,13 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     taxable_income = maxm(ZERO, taxable_before_qbi - qbi.deduction)
     tb.add("fed.taxable", "Taxable income", taxable_income,
            jurisdiction="federal",
-           rule=("AGI less deduction less Schedule 1-A less QBI"
-                 if schedule_1a > ZERO else "AGI less deduction less QBI"),
+           rule="AGI less deduction"
+                + (" less line 12f" if line_12f > ZERO else "")
+                + (" less Schedule 1-A" if schedule_1a > ZERO else "")
+                + " less QBI",
            form_ref="1040 line 15", authority="IRC §63",
            inputs=("fed.agi", "fed.deduction")
+           + (("fed.deduction.charitable_nonitemizer",) if line_12f > ZERO else ())
            + (("fed.schedule_1a",) if schedule_1a > ZERO else ())
            + (("fed.qbi",) if qbi.deduction > ZERO else ()))
     if taxable_income < ZERO:
@@ -389,7 +461,9 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
     # 10. AMT parallel computation -------------------------------------------
     amt_add, tmt = amt_additional(
         taxable_income, pref_income, mode, std,
-        itemized.salt if mode == "itemized" else ZERO,
+        # §68 doesn't apply for AMT (§56(b)(1)(F)), so AMTI gets back the
+        # reduction along with the SALT addback.
+        itemized.salt - limitation if mode == "itemized" else ZERO,
         status, fed.amt, fed.preferential_brackets[status], regular_tax)
     if amt_add > ZERO:
         tb.add("fed.amt.additional", "Alternative minimum tax (excess)",
@@ -499,7 +573,7 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
         tb=tb, total_income=total_income, agi=agi,
         adjustments_total=adjustments_total, deduction=deduction,
         deduction_mode=mode, itemized=itemized, standard_amount=std,
-        qbi=qbi.deduction, schedule_1a=schedule_1a,
+        qbi=qbi.deduction, schedule_1a=schedule_1a, line_12f=line_12f,
         taxable_income=taxable_income,
         tax_ordinary=tax.ordinary, tax_preferential=tax.preferential,
         tax_special=tax.special, amt_add=amt_add,
@@ -720,6 +794,7 @@ def run(inp: TaxInput, data: ResolvedData, *,
         deduction_mode=fp.deduction_mode,  # type: ignore[arg-type]
         qbi_deduction=fp.qbi,
         schedule_1a_deduction=fp.schedule_1a,
+        nonitemizer_charitable_deduction=fp.line_12f,
         taxable_income=fp.taxable_income,
         tax_ordinary=fp.tax_ordinary,
         tax_preferential=fp.tax_preferential + fp.tax_special,

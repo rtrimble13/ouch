@@ -38,6 +38,9 @@ def render_summary(result: TaxResult, status: FilingStatus, state: str,
     lines.append(_row("Adjusted gross income", result.agi))
     lines.append(_row(f"Deduction ({result.deduction_mode})",
                       -result.deduction_taken))
+    if result.nonitemizer_charitable_deduction > ZERO:
+        lines.append(_row("Charitable (non-itemizer)",
+                          -result.nonitemizer_charitable_deduction))
     if result.schedule_1a_deduction > ZERO:
         lines.append(_row("Schedule 1-A deductions",
                           -result.schedule_1a_deduction))
