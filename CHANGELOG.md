@@ -6,17 +6,9 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
-## [0.3.2] - 2026-11-26
+## [0.3.2] - 2026-11-27
 
-### Added
-
-- `ouch import pdf` reads W-2 box 12 codes **TP** (cash tips reported to the employer) and **TT** (qualified overtime, the premium portion only) into the Schedule 1-A tips and overtime fields. These are new on 2026 W-2s. Other box 12 codes are ignored.
-- TP is every cash tip, so the import also reads box 14b, the Treasury Tipped Occupation Code(s). When box 14b includes `000` (some tips came from a nonqualifying occupation), or box 14b can't be found, the tips amount goes to review instead of being accepted. `--yes` skips it.
-- PDF mapping tables accept `coded_fields` for code-keyed boxes such as W-2 box 12.
-
-## [0.3.1] - 2026-11-26
-
-Adds the remaining Schedule 1-A deductions for 2025–2028 (rtrimble13/ouch#26). Existing profiles compute exactly as before: these take new, optional inputs.
+Adds the remaining Schedule 1-A deductions for 2025–2028 (rtrimble13/ouch#26), and their import from 2026 W-2s. Existing profiles compute exactly as before: these take new, optional inputs. (0.3.1 was never released on its own; its changes are listed here.)
 
 ### Added
 
@@ -25,6 +17,9 @@ Adds the remaining Schedule 1-A deductions for 2025–2028 (rtrimble13/ouch#26).
 - **No tax on car loan interest:** `deductions.car_loan_interest`. Up to $10,000, less $200 for each $1,000, or part of one, of MAGI above $100,000 ($200,000 joint). Any filing status.
 - Each deduction has its own trace line under `fed.schedule_1a` (Form 1040 line 13b). Eligibility the profile can't express (the tipped occupation, the overtime premium, the vehicle, valid SSNs) is assumed and stated in a warning.
 - A profile whose tips plus overtime exceed that person's W-2 box 1 wages is rejected, because both are already part of box 1.
+- `ouch import pdf` reads W-2 box 12 codes **TP** (cash tips reported to the employer) and **TT** (qualified overtime, the premium portion only) into those fields. These are new on 2026 W-2s. Other box 12 codes are ignored.
+- TP is every cash tip, so the import also reads box 14b, the Treasury Tipped Occupation Code(s). When box 14b includes `000` (some tips came from a nonqualifying occupation), or box 14b can't be found, the tips amount goes to review instead of being accepted. `--yes` skips it.
+- PDF mapping tables accept `coded_fields` for code-keyed boxes such as W-2 box 12.
 
 ## [0.3.0] - 2026-11-25
 
