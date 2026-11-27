@@ -1,0 +1,13 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "CO"
+
+[income.wages]
+taxpayer_w2 = 120025
+taxpayer_qualified_overtime = 6000
+
+[payments.withholding]
+federal_ytd = 17000

@@ -1,0 +1,29 @@
+{
+  "total_income": "250000.00",
+  "agi": "250000.00",
+  "deduction_taken": "32200.00",
+  "deduction_mode": "standard",
+  "qbi_deduction": "0.00",
+  "schedule_1a_deduction": "0.00",
+  "nonitemizer_charitable_deduction": "0.00",
+  "taxable_income": "217800.00",
+  "tax_ordinary": "37468.00",
+  "tax_preferential": "0.00",
+  "amt_additional": "0.00",
+  "se_tax": "0.00",
+  "additional_medicare": "0.00",
+  "niit": "0.00",
+  "credits_nonrefundable": "4400.00",
+  "credits_refundable": "0.00",
+  "federal_total_tax": "33068.00",
+  "total_tax_all_jurisdictions": "46877.96",
+  "total_payments": "40000.00",
+  "balance_due_or_refund": "6877.96",
+  "state": {
+    "code": "CA",
+    "agi": "250000.00",
+    "deduction": "11412.00",
+    "taxable": "238588.00",
+    "tax": "13809.96"
+  }
+}

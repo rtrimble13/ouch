@@ -1125,8 +1125,19 @@ local/<NAME>-<YEAR>.yaml
 | state | CA, CO, FL, MA, NY, PA, TX, WA (2025 and 2026) |
 | local | NYC (2025 and 2026) |
 
-Everything currently ships with `verified: false`, so every result carries a
-warning. `ouch data verify` lists what still needs review.
+Checked against the revenue department's own publications and marked
+`verified: true`: CA 2025, CO 2025, NY 2025 and 2026, NYC 2025 and 2026, and
+TX and FL (no income tax). The others are `verified: false`, so results that
+use them carry a warning:
+
+- **2026 files carried forward from 2025.** CA 2026 follows FTB's 2026 Form
+  540-ES, which says to use the 2025 tax table and exemption credits. CO 2026
+  keeps the 2025 rate, which Colorado sets each year.
+- **Federal files.** Both are still built partly from draft IRS forms.
+- **Not yet checked.** MA and PA, which are placeholders. WA has no wage tax,
+  but its capital gains excise tax isn't modeled.
+
+`ouch data verify` lists what still needs review.
 
 ### 9.3 Adding a jurisdiction
 
@@ -1166,11 +1177,12 @@ ouch estimate --locality PHL
 | `brackets` | progressive | Required when `regime: progressive`; per filing status, ascending `up_to`, last may omit `up_to` |
 | `starting_point` | both | e.g. `federal_agi`, `federal_taxable`, `state_taxable` |
 | `applies_to` | local | `residents` \| `workers` \| `both` |
-| `modifications` | state | `additions` / `subtractions`, each with `id`, `label`, `source_field`, optional `cap`, `min_age` |
+| `modifications` | state | `additions` / `subtractions`, each with `id`, `label`, `source_field`, and optionally `cap`, `min_age`, `min_agi` (per filing status: applies only above that federal AGI), `less` (per filing status: subtracted from the source value, not below zero). Source fields: `taxable_social_security`, `tax_exempt_interest_out_of_state`, `treasury_interest`, `pension`, `itemized_salt_income`, `federal_deduction`, `federal_qbi_deduction`, `federal_overtime_deduction` |
 | `standard_deduction` | state | Per filing status |
-| `personal_exemption` | state | `per_filer`, `per_dependent` |
+| `personal_exemption` | state | `per_filer`, `per_dependent` (deductions) |
+| `exemption_credits` | state | Credits against tax: `personal` (one per filer, two on a joint or QSS return), `senior`, `blind`, `dependent`, and optional `phaseout` (`threshold` per status, `step`, `step_mfs`, `reduction_per_step`) |
 | `itemized` | state | `allowed`, `decouple_from_federal`, `salt_deductible` |
-| `credits` | both | `id`, `type`, `amount` or `pct_of_federal` or `table` |
+| `credits` | both | `id`, `type`, and `amount`, `amount_by_status`, `schedule` (brackets applied to taxable income), `pct_of_federal` or `table`; optional `max_income` with `income: agi \| agi_less_ira` |
 | `capital_gains_treatment` | state | `ordinary` \| `preferential` \| `exempt_pct` |
 | `reciprocity_states`, `credit_for_taxes_paid_other_states` | state | |
 
@@ -1522,11 +1534,11 @@ the TUI.
 
 ### Tax data honesty
 
-Every shipped file carries `verified: false` until each figure has been checked
-against primary sources (IRS Revenue Procedures, state DOR publications). Every
-result computed from unverified data carries a warning, and `ouch data verify`
-lists the files needing review. Treat the shipped 2026 figures as **projected
-placeholders**.
+A file is marked `verified: true` only when every figure in it has been
+checked against primary sources (IRS Revenue Procedures, state DOR
+publications), and its `meta.source` cites them. Every result computed from
+unverified data carries a warning, and `ouch data verify` lists the files
+needing review. §9.2 says which files are verified.
 
 ---
 

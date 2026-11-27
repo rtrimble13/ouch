@@ -1,0 +1,25 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "CA"
+
+[spouse]
+
+[[dependents]]
+name = "child1"
+birth_date = 2015-04-01
+relationship = "child"
+
+[[dependents]]
+name = "child2"
+birth_date = 2018-09-09
+relationship = "child"
+
+[income.wages]
+taxpayer_w2 = 150000
+spouse_w2 = 100000
+
+[payments.withholding]
+federal_ytd = 40000

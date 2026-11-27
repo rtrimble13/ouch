@@ -459,12 +459,31 @@ class FederalData(_Model):
         return v
 
 
+def _require_all_statuses(v: Optional[StatusAmount], where: str) -> Optional[StatusAmount]:
+    if v is not None:
+        missing = [s.value for s in FilingStatus if s not in v]
+        if missing:
+            raise ValueError(f"{where} missing {', '.join(missing)}")
+    return v
+
+
 class Modification(_Model):
     id: str
     label: str
     source_field: Optional[str] = None
     cap: Optional[Decimal] = None
     min_age: Optional[Decimal] = None
+    # Applies only when federal AGI is more than this, by filing status
+    # (e.g. Colorado's QBI and deduction addbacks).
+    min_agi: Optional[StatusAmount] = None
+    # Subtracted from the source value, not below zero: an addback of only
+    # the part above a limit (e.g. Colorado's deduction addback).
+    less: Optional[StatusAmount] = None
+
+    @field_validator("min_agi", "less")
+    @classmethod
+    def _all_statuses(cls, v, info):
+        return _require_all_statuses(v, f"modification.{info.field_name}")
 
 
 class Modifications(_Model):
@@ -484,6 +503,57 @@ class StateCredit(_Model):
     amount: Optional[Decimal] = None
     pct_of_federal: Optional[Decimal] = None
     table: Optional[list] = None
+    # A fixed amount that depends on filing status (NYC school tax credit).
+    amount_by_status: Optional[StatusAmount] = None
+    # A credit figured like a tax on the jurisdiction's taxable income
+    # (NYC school tax credit, rate reduction amount).
+    schedule: Optional[StatusBrackets] = None
+    # No credit when income is more than this. `income` says what's
+    # measured: federal AGI, or AGI less IRA distributions (NYC).
+    max_income: Optional[Decimal] = None
+    income: Literal["agi", "agi_less_ira"] = "agi"
+
+    @field_validator("amount_by_status")
+    @classmethod
+    def _all_statuses(cls, v):
+        return _require_all_statuses(v, "credit.amount_by_status")
+
+    @field_validator("schedule")
+    @classmethod
+    def _ordered(cls, v: Optional[StatusBrackets]) -> Optional[StatusBrackets]:
+        if v is not None:
+            for status in FilingStatus:
+                if status not in v:
+                    raise ValueError(f"credit.schedule missing {status.value}")
+                _validate_brackets(v[status], f"credit.schedule.{status}")
+        return v
+
+
+class ExemptionCreditPhaseout(_Model):
+    """Each exemption credit shrinks by `reduction_per_step` for every
+    `step` (or part) of federal AGI over `threshold` (California AGI
+    Limitation Worksheet)."""
+    threshold: StatusAmount
+    step: Decimal = Field(gt=0)
+    step_mfs: Decimal = Field(gt=0)
+    reduction_per_step: Decimal = Field(gt=0)
+
+    @field_validator("threshold")
+    @classmethod
+    def _all_statuses(cls, v):
+        return _require_all_statuses(v, "exemption_credits.phaseout.threshold")
+
+
+class ExemptionCredits(_Model):
+    """Exemption credits that reduce tax (California Form 540 lines 7–10):
+    one personal credit per filer (two on a joint or qualifying surviving
+    spouse return), one more for each filer 65 or older or blind, and one
+    per dependent. Nonrefundable."""
+    personal: Decimal = Field(ge=0)
+    senior: Decimal = Field(default=Decimal(0), ge=0)
+    blind: Decimal = Field(default=Decimal(0), ge=0)
+    dependent: Decimal = Field(default=Decimal(0), ge=0)
+    phaseout: Optional[ExemptionCreditPhaseout] = None
 
 
 class PersonalExemption(_Model):
@@ -500,6 +570,7 @@ class StateData(_Model):
     modifications: Modifications = Modifications()
     standard_deduction: Optional[StatusAmount] = None
     personal_exemption: PersonalExemption = PersonalExemption()
+    exemption_credits: Optional[ExemptionCredits] = None
     itemized: StateItemized = StateItemized()
     credits: list[StateCredit] = []
     capital_gains_treatment: str = "ordinary"         # ordinary | preferential | exempt_pct

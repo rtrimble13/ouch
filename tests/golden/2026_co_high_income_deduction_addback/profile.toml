@@ -1,0 +1,12 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "CO"
+
+[income.wages]
+taxpayer_w2 = 400000
+
+[payments.withholding]
+federal_ytd = 120000

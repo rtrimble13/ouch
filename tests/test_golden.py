@@ -30,6 +30,9 @@ TOLERANCE = Decimal(1)
 
 
 def _agrees(actual, expected) -> bool:
+    if isinstance(expected, dict):
+        return isinstance(actual, dict) and all(
+            _agrees(actual.get(k), v) for k, v in expected.items())
     try:
         return abs(Decimal(actual) - Decimal(expected)) < TOLERANCE
     except (InvalidOperation, TypeError):

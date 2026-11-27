@@ -6,6 +6,35 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-27
+
+State and New York City tax data checked against each revenue department's publications (rtrimble13/ouch#28). **State estimates change** for California, Colorado, New York and New York City residents.
+
+### Changed
+
+- **California, 2025:** the brackets, standard deduction ($5,706 / $11,412) and new exemption credits come from the FTB 2025 Form 540 booklet. The file had the 2024 figures. The exemption credits are $153 per filer, per filer 65 or older and per blind filer, and $475 per dependent. They shrink by $6 for each $2,500 of AGI over $252,203 ($504,411 joint, $378,310 head of household). The 1% tax on taxable income over $1 million (Behavioral Health Services Tax) is now included. Example: single, $100,000 of wages owes $5,054.98, not $5,327.14.
+- **California, 2026:** FTB hasn't published 2026 brackets, and its 2026 Form 540-ES says to use 2025's, so the 2026 file now has the 2025 figures. Before, it had 2024's.
+- **New York, 2025:** the 6% bracket for married filing separately now runs to $215,400, the same as single (it ended at $161,550). The 10.3% and 10.9% brackets above $5 million and $25 million are added.
+- **New York, 2026:** the five lower rates drop to 3.90%, 4.40%, 5.15%, 5.40% and 5.90%, from the 2026 IT-2105 instructions.
+- **New York City school tax credit:** $125 on a joint return ($63 otherwise), only up to $250,000 of income. The rate-reduction amount is added: 0.171% of city taxable income up to the first bracket and 0.228% above it, up to $500,000 of income.
+- **Colorado:** Colorado's additions to federal taxable income are now applied:
+  - the state income tax itemizers deducted;
+  - the QBI deduction, above $500,000 of AGI ($1,000,000 joint);
+  - the federal standard or itemized deduction above $12,000 ($16,000 joint) when AGI is over $300,000. From 2026 the limit is $1,000 ($2,000 joint);
+  - the federal overtime deduction, from 2026. Tips aren't added back.
+- **Washington:** the notes now describe the capital gains excise tax as 7%, or 9.9% on gains above $1 million, from 2025, with a $278,000 deduction ($290,000 for 2026). That tax is still not modeled.
+- **Still placeholders or approximate:** Massachusetts and Pennsylvania are unchanged, because their revenue sites couldn't be read. ouch still doesn't model New York's tax computation for AGI over $107,650, so New York tax is understated above that AGI. Colorado's pension subtraction isn't modeled either.
+
+### Added
+
+- New state data fields:
+  - `exemption_credits`, credits against tax with an AGI phase-out;
+  - `min_agi` and `less` on modifications;
+  - `amount_by_status`, `schedule`, `max_income` and `income` on credits;
+  - the modification sources `federal_deduction`, `federal_qbi_deduction` and `federal_overtime_deduction`.
+
+  The manual's §9.4 lists them.
+
 ## [0.6.0] - 2026-11-27
 
 Fixes found by the new independent golden fixtures (rtrimble13/ouch#23). Each was checked against the IRS form text. **Estimates change** for some returns with capital gains or qualified dividends, for AMT filers with them, for seniors carrying an AMT credit, and for anyone using an AMT credit carryforward alongside other credits. 2025 returns are corrected too.
