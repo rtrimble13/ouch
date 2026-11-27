@@ -99,6 +99,7 @@ PR with version bump ──► CI passes ──► merge to main ──► relea
 - **Tag:** `v<version>`, for example `v0.2.0`, at the merge commit.
 - **Assets:** `ouch-0.2.0.tar.gz`, `ouch-0.2.0-py3-none-any.whl`, and a `.sha256` file for each.
 - **Idempotent:** a version that already has a tag is skipped. Re-running the workflow, or merging a docs-only change, releases nothing.
+- **No version is skipped:** if several pull requests merge within a minute or two, GitHub keeps only one *pending* release run and cancels the others, so a version in the middle never gets its run. Each run therefore also releases any earlier version that reached `main` without a tag. It builds that version from the merge commit that introduced it, uses that commit's changelog section, and doesn't mark it as the latest release. Only versions on `main`'s own history count, newer than the first tag; a version that lived only on a stacked branch is never released.
 - **Reproducible timestamps:** packages are built with `SOURCE_DATE_EPOCH` set to the commit time.
 
 To preview what the next merge would release:
@@ -138,7 +139,7 @@ Releases are immutable: don't delete or move tags, because people and scripts ma
 | `validate` | Check `__version__`, the pyproject wiring and `CHANGELOG.md`. Exit 1 on any error. | `--strict` also fails on warnings |
 | `check-versions` | The version gate, against the merge base | `--base origin/main` |
 | `package` | Build the sdist and wheel, with a `.sha256` for each | `--out DIR` (default `dist/`) |
-| `release` | If `v<version>` has no tag, package and create the GitHub release with `gh`. Needs `GH_TOKEN`. | `--dry-run` |
+| `release` | If `v<version>` has no tag, package and create the GitHub release with `gh`. First releases any earlier version that reached `main` untagged. Needs `GH_TOKEN`. | `--dry-run` |
 | `notes` | Print a version's changelog section | `--version X.Y.Z` |
 
 Inside GitHub Actions, findings print as `::error` and `::warning` annotations on the affected file and line.
@@ -163,7 +164,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and every push to `ma
 | *Tests (Python 3.11 / 3.12 / 3.13)* | pytest, including the golden fixtures; `ouch data validate` |
 | *Version and package* | `relkit validate`; the version gate (pull requests only); `relkit package`; uploads `dist/` as the `ouch-dist` artifact for 14 days |
 
-The release workflow (`.github/workflows/release.yml`) runs on pushes to `main` that touch `ouch/`, `pyproject.toml` or `CHANGELOG.md`, and on demand. Dependabot keeps the pinned actions current.
+The release workflow (`.github/workflows/release.yml`) runs on pushes to `main` that touch `ouch/`, `pyproject.toml`, `CHANGELOG.md`, `scripts/relkit.py` or the workflow itself, and on demand. Dependabot keeps the pinned actions current.
 
 ## Recommended repository settings
 

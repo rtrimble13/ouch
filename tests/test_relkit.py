@@ -272,6 +272,67 @@ def test_release_refuses_an_invalid_repository(repo, capsys):
     assert "refusing to release" in capsys.readouterr().out
 
 
+def _release_on_main(repo: Path, version: str, sections: str) -> str:
+    git(repo, "checkout", "-q", "main")
+    set_version(repo, version, sections=sections)
+    commit(repo, f"release {version}")
+    return git(repo, "rev-parse", "HEAD").strip()
+
+
+def test_release_catches_up_a_version_that_was_never_released(repo, capsys):
+    """A cancelled release run leaves 0.2.0 on main without a tag: the next
+    run releases it from its own commit, not marked latest."""
+    git(repo, "tag", "v0.1.0")
+    sha = _release_on_main(repo, "0.2.0", section("0.2.0", body="- Two.") + section("0.1.0"))
+    _release_on_main(repo, "0.3.0", section("0.3.0") + section("0.2.0", body="- Two.")
+                     + section("0.1.0"))
+    assert relkit.main(["--root", str(repo), "release", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert f"v0.2.0 reached main at {sha[:12]}" in out
+    assert f"--target {sha} --latest=false" in out
+    assert "- Two." in out
+    assert "would release v0.3.0" in out
+    assert out.index("v0.2.0") < out.index("would release v0.3.0")
+    assert git(repo, "worktree", "list").count("\n") == 1   # temporary tree removed
+
+
+def test_catch_up_runs_even_when_the_current_version_is_tagged(repo, capsys):
+    git(repo, "tag", "v0.1.0")
+    _release_on_main(repo, "0.2.0", section("0.2.0") + section("0.1.0"))
+    _release_on_main(repo, "0.3.0", section("0.3.0") + section("0.2.0") + section("0.1.0"))
+    git(repo, "tag", "v0.3.0")
+    assert relkit.main(["--root", str(repo), "release", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "would release v0.2.0" in out
+    assert "v0.3.0 is already released" in out
+
+
+def test_no_catch_up_before_the_first_release(repo, capsys):
+    """Without tags, only the current version is released: history from
+    before the release model isn't backfilled."""
+    _release_on_main(repo, "0.2.0", section("0.2.0") + section("0.1.0"))
+    assert relkit.main(["--root", str(repo), "release", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "catching up" not in out
+    assert "would release v0.2.0" in out
+
+
+def test_versions_only_on_a_merged_branch_are_not_caught_up(repo, capsys):
+    """0.2.0 lived only on a feature branch (a stacked PR merged into
+    another branch); main went from 0.1.0 straight to 0.3.0."""
+    git(repo, "tag", "v0.1.0")
+    set_version(repo, "0.2.0", sections=section("0.2.0") + section("0.1.0"))
+    commit(repo, "0.2.0 on feature")
+    set_version(repo, "0.3.0", sections=section("0.3.0") + section("0.2.0") + section("0.1.0"))
+    commit(repo, "0.3.0 on feature")
+    git(repo, "checkout", "-q", "main")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+        "merge", "-q", "--no-ff", "-m", "merge feature", "feature")
+    assert [v for v, _ in relkit.versions_on_main(repo)] == ["0.1.0", "0.3.0"]
+    assert relkit.main(["--root", str(repo), "release", "--dry-run"]) == 0
+    assert "catching up" not in capsys.readouterr().out
+
+
 def test_notes_command(repo, capsys):
     assert relkit.main(["--root", str(repo), "notes"]) == 0
     assert "- Something." in capsys.readouterr().out
