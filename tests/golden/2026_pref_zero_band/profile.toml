@@ -1,0 +1,14 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+
+[income.wages]
+taxpayer_w2 = 40025
+
+[income.investment]
+ordinary_dividends = 3000
+qualified_dividends = 3000
+long_term_gains = 5000

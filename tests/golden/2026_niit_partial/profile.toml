@@ -1,0 +1,18 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+
+[income.wages]
+taxpayer_w2 = 190000
+
+[income.investment]
+interest = 5000
+ordinary_dividends = 10000
+qualified_dividends = 8000
+long_term_gains = 15000
+
+[payments.withholding]
+federal_ytd = 40000

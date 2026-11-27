@@ -1,0 +1,20 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "TX"
+
+[spouse]
+
+[income.wages]
+taxpayer_w2 = 180000
+spouse_w2 = 20000
+
+[income.business]
+owner = "spouse"
+schedule_c_net = 60000
+qbi_eligible_income = 60000
+
+[payments.withholding]
+federal_ytd = 40000

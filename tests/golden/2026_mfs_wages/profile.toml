@@ -1,0 +1,14 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "married_filing_separately"
+state = "TX"
+
+[spouse]
+
+[income.wages]
+taxpayer_w2 = 85025
+
+[payments.withholding]
+federal_ytd = 9000

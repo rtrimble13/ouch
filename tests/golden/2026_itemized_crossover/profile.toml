@@ -1,0 +1,18 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+
+[income.wages]
+taxpayer_w2 = 90000
+
+[deductions.itemized]
+state_local_income_tax = 5000
+real_estate_tax = 2000
+mortgage_interest = 9525
+charitable_cash = 1500
+
+[payments.withholding]
+federal_ytd = 9000

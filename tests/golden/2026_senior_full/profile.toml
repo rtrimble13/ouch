@@ -1,0 +1,14 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "single"
+state = "TX"
+birth_date = 1955-06-15
+
+[income.retirement]
+pension = 30025
+ira_distributions = 20000
+
+[payments.withholding]
+federal_ytd = 3000

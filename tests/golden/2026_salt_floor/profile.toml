@@ -1,0 +1,21 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "TX"
+
+[spouse]
+
+[income.wages]
+taxpayer_w2 = 400000
+spouse_w2 = 300000
+
+[deductions.itemized]
+state_local_income_tax = 40000
+real_estate_tax = 10000
+mortgage_interest = 30000
+charitable_cash = 20000
+
+[payments.withholding]
+federal_ytd = 165000

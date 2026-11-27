@@ -73,6 +73,19 @@ def federal_income_tax(taxable_income: Money, pref_income: Money,
             stack += amount
             base_tax = apply_brackets(stack, brackets)
 
+    # 4. QDCGT worksheet line 25 (Schedule D Tax Worksheet line 47): the tax
+    #    is the smaller of the worksheet result and the tax on all taxable
+    #    income as ordinary income. Taxing everything as ordinary wins where
+    #    the gain sits above the 0% breakpoint but still inside the 12%
+    #    bracket (single: $49,450 to $50,400 in 2026).
+    if pref_income + special_total > ZERO:
+        excess = ordinary_tax + pref_tax + special_tax - apply_brackets(
+            taxable_income, brackets)
+        if excess > ZERO:
+            cut = minm(excess, pref_tax)
+            pref_tax -= cut
+            special_tax -= excess - cut
+
     return FederalTax(ordinary=ordinary_tax, preferential=pref_tax,
                       special=special_tax)
 
@@ -81,7 +94,9 @@ def amt_additional(taxable_income: Money, pref_income: Money,
                    deduction_mode: str, standard_amount: Money,
                    salt_deducted: Money, status: FilingStatus,
                    amt: Amt, pref_brackets: list[Bracket],
-                   regular_income_tax: Money) -> tuple[Money, Money]:
+                   regular_income_tax: Money, *,
+                   regular_ordinary: Money | None = None,
+                   other_addbacks: Money = ZERO) -> tuple[Money, Money]:
     """Simplified parallel AMT computation (fidelity: approximate).
 
     Returns (additional AMT owed, tentative minimum tax). The TMT is needed
@@ -89,21 +104,36 @@ def amt_additional(taxable_income: Money, pref_income: Money,
     only to the extent regular tax exceeds TMT (Form 8801).
 
     AMTI ≈ taxable income plus the standard deduction (if taken) or the SALT
-    deduction (if itemized) — the two most common preference addbacks. ISO
-    bargain elements and other adjustments are not modeled in v1.
+    deduction (if itemized) — the two most common preference addbacks — plus
+    `other_addbacks` (the Schedule 1-A senior deduction: Form 6251 line 1a
+    subtracts Schedule 1-A line 43 from Form 1040 line 14, so it isn't
+    allowed). ISO bargain elements and other adjustments are not modeled.
+
+    `regular_ordinary` is the regular-tax ordinary income (QDCGT worksheet
+    line 5). Form 6251 Part III measures the 0% and 15% breakpoints from it
+    (lines 20 and 27), not from the AMT ordinary base. It defaults to
+    taxable income less preferential income.
     """
     addback = standard_amount if deduction_mode == DeductionMode.STANDARD else salt_deducted
-    amti = taxable_income + addback
+    amti = taxable_income + addback + other_addbacks
     exemption = Money(amt.exemption[status])
     threshold = Money(amt.phaseout_threshold[status])
     exemption = maxm(ZERO, exemption - maxm(ZERO, amti - threshold) * amt.phaseout_rate)
     base = maxm(ZERO, amti - exemption)
 
-    # Preferential income keeps its 0/15/20 rates under AMT.
-    pref_in_base = minm(maxm(pref_income, ZERO), base)
-    ord_base = base - pref_in_base
-    tmt = apply_brackets(ord_base, amt.brackets_for(status))
-    floor = ord_base
+    # Form 6251 Part III. Preferential income keeps its 0/15/20 rates.
+    brackets = amt.brackets_for(status)
+    pref_in_base = minm(maxm(pref_income, ZERO), base)       # line 22
+    if pref_in_base <= ZERO:
+        tmt = apply_brackets(base, brackets)
+        return maxm(ZERO, tmt - regular_income_tax), tmt
+    ord_base = base - pref_in_base                            # line 17
+    tmt = apply_brackets(ord_base, brackets)                  # line 18
+    if regular_ordinary is None:
+        regular_ordinary = maxm(ZERO, taxable_income - pref_income)
+    # Each preferential band's room runs from max(band start, regular-tax
+    # ordinary income) to its top: lines 19–23 (0%), 25–30 (15%), 33 (20%).
+    floor = regular_ordinary
     remaining = pref_in_base
     for band in pref_brackets:
         if remaining <= ZERO:
@@ -115,6 +145,8 @@ def amt_additional(taxable_income: Money, pref_income: Money,
         if room > ZERO:
             tmt += room * band.rate
             remaining -= room
-            floor += room
+            floor = floor + room if band_top is None else maxm(floor, band_top)
+    # Line 40: the smaller of that and the whole base at AMT rates (line 39).
+    tmt = minm(tmt, apply_brackets(base, brackets))
 
     return maxm(ZERO, tmt - regular_income_tax), tmt

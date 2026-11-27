@@ -1,0 +1,22 @@
+{
+  "total_income": "66225.00",
+  "agi": "66225.00",
+  "deduction_taken": "16100.00",
+  "deduction_mode": "standard",
+  "qbi_deduction": "0.00",
+  "schedule_1a_deduction": "0.00",
+  "nonitemizer_charitable_deduction": "0.00",
+  "taxable_income": "50125.00",
+  "tax_ordinary": "5695.00",
+  "tax_preferential": "72.00",
+  "amt_additional": "0.00",
+  "se_tax": "0.00",
+  "additional_medicare": "0.00",
+  "niit": "0.00",
+  "credits_nonrefundable": "0.00",
+  "credits_refundable": "0.00",
+  "federal_total_tax": "5767.00",
+  "total_tax_all_jurisdictions": "5767.00",
+  "total_payments": "0.00",
+  "balance_due_or_refund": "5767.00"
+}

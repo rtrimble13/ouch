@@ -1,13 +1,20 @@
 """Golden fixtures (spec §16.2): full returns with hand-computed expected
-output, to the cent. A fixture whose expected values were produced by ouch
-itself is not a fixture — every directory must carry a SOURCE.md stating the
-independent derivation basis.
+output. A fixture whose expected values were produced by ouch itself is not
+a fixture — every directory must carry a SOURCE.md stating the independent
+derivation basis.
+
+Money fields must agree to the dollar (spec §19 M1 exit criterion): a filed
+return reads tax below $100,000 from the Tax Table and the earned income
+credit from the EIC Table, both figured at the midpoint of a $50 row and
+rounded to whole dollars, while ouch computes them exactly. Other fields
+(deduction_mode) must match exactly.
 """
 
 from __future__ import annotations
 
 import json
 import tomllib
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import pytest
@@ -19,6 +26,14 @@ from ouch.taxdata import loader
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 FIXTURES = sorted(p for p in GOLDEN_DIR.iterdir() if p.is_dir())
+TOLERANCE = Decimal(1)
+
+
+def _agrees(actual, expected) -> bool:
+    try:
+        return abs(Decimal(actual) - Decimal(expected)) < TOLERANCE
+    except (InvalidOperation, TypeError):
+        return actual == expected
 
 
 @pytest.mark.parametrize("fixture", FIXTURES, ids=lambda p: p.name)
@@ -41,6 +56,6 @@ def test_golden_fixture(fixture: Path):
     mismatches = {
         key: (actual.get(key), value)
         for key, value in expected.items()
-        if actual.get(key) != value
+        if not _agrees(actual.get(key), value)
     }
     assert not mismatches, mismatches

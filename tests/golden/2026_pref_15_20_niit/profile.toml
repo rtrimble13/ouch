@@ -1,0 +1,20 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "married_filing_jointly"
+state = "TX"
+
+[spouse]
+
+[income.wages]
+taxpayer_w2 = 400000
+spouse_w2 = 160000
+
+[income.investment]
+ordinary_dividends = 20000
+qualified_dividends = 20000
+long_term_gains = 80000
+
+[payments.withholding]
+federal_ytd = 150000

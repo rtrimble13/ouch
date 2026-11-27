@@ -1,0 +1,17 @@
+schema_version = 2
+tax_year = 2026
+
+[taxpayer]
+filing_status = "head_of_household"
+state = "TX"
+
+[[dependents]]
+name = "child1"
+birth_date = 2015-08-01
+relationship = "child"
+
+[income.wages]
+taxpayer_w2 = 40025
+
+[payments.withholding]
+federal_ytd = 1000
