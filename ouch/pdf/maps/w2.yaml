@@ -40,3 +40,26 @@ fields:
     type: money
     aggregate: sum
     required: false
+# Box 12 holds up to four code/amount pairs (12a–12d): "the IRS code to the
+# left of the vertical line … and the money amount to the right" (General
+# Instructions for Forms W-2 and W-3 (2026)). New for 2026:
+#   TP — "Total amount of cash tips reported to the employer". That is ALL
+#        cash tips: box 14b lists the Treasury Tipped Occupation Code(s), and
+#        "000" there means some tips came from a nonqualifying occupation.
+#   TT — "Total amount of qualified overtime compensation": "only the 'half'
+#        portion of 'time-and-a-half'".
+coded_fields:
+  - box: "12"
+    slots: [a, b, c, d]
+    code: TP
+    description: "Cash tips reported to employer (qualified tips if the occupation qualifies)"
+    target: income.wages.{owner}_qualified_tips
+    occupation_check:
+      box: "14b"
+      label: "Treasury Tipped Occupation Code"
+      nonqualifying_code: "000"
+  - box: "12"
+    slots: [a, b, c, d]
+    code: TT
+    description: "Qualified overtime compensation"
+    target: income.wages.{owner}_qualified_overtime

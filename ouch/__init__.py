@@ -1,6 +1,6 @@
 """ouch — a CPA-grade personal tax estimation CLI."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.2"
 
 DISCLAIMER = (
     "Estimates only. ouch is not tax advice and does not prepare or file returns.\n"

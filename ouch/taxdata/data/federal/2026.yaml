@@ -7,7 +7,6 @@
 #   - child and dependent care credit: 2026 rate schedule (rtrimble13/ouch#25)
 #   - charitable 0.5% floor, non-itemizer deduction, §68 limit (rtrimble13/ouch#24)
 #   - QBI minimum deduction (rtrimble13/ouch#25)
-#   - Schedule 1-A tips, overtime, car-loan interest (rtrimble13/ouch#26)
 meta:
   jurisdiction: US
   year: 2026
@@ -20,17 +19,16 @@ meta:
     - "Pub 505 (2026): SALT cap $40,400 ($20,200 MFS), MAGI threshold $505,000, floor $10,000 ($5,000 MFS); estimated-tax due dates; safe harbors"
     - "Instructions for Schedule A (Form 1040) (2025), State and Local Tax Deduction Worksheet line 7: 30% phase-down rate"
     - "IRS quarterly interest rates page: 2026 individual underpayment rates (IRB 2025-48, 2026-8, 2026-22, 2026-36)"
-    - "Schedule 1-A (Form 1040) (2025), Part V; IRS OBBBA provisions page: senior deduction 2025 through 2028"
+    - "Schedule 1-A (Form 1040) (2025), Parts II–V; 2026 Form 1040-ES What's New (tips, overtime, car-loan interest, seniors); IRS OBBBA provisions page: 2025 through 2028"
     - "2026 Schedule 8812 (CTC, ODC, phase-out, refundable portion); Notice 2025-67 and 2026 Form 8880 (saver's credit)"
     - "Instructions for Forms 8959 and 8960, Form 8863, Schedule D; Pubs 502, 526, 915, 936 (statutory, unindexed amounts)"
   notes: >
     Rebuilt from 2026 primary sources. Parameters for provisions the engine
     can't model yet stay at their pre-2026 values: the dependent care credit
     (2026 50% maximum rate, rtrimble13/ouch#25), the charitable 0.5% floor,
-    non-itemizer deduction and §68 limitation (rtrimble13/ouch#24), the QBI
-    minimum deduction (rtrimble13/ouch#25), and the Schedule 1-A tips,
-    overtime and car-loan deductions (rtrimble13/ouch#26). The file stays
-    unverified until those land.
+    non-itemizer deduction and §68 limitation (rtrimble13/ouch#24), and the QBI
+    minimum deduction (rtrimble13/ouch#25). The file stays unverified until
+    those land.
 
 ordinary_brackets:            # Rev. Proc. 2025-32 §4.01, Tables 1–4
   single:
@@ -304,3 +302,52 @@ schedule_1a:
       head_of_household: 75_000
       qualifying_surviving_spouse: 75_000
     phaseout_rate: 0.06        # line 34
+  # Schedule 1-A (Form 1040) (2025) Parts II–IV; 2026 Form 1040-ES, What's New (same amounts for 2026). Statutory for 2025–2028, not indexed.
+  tips:                        # Part II, lines 7–13
+    cap:                       # line 7: per return
+      single: 25_000
+      married_filing_jointly: 25_000
+      married_filing_separately: 25_000
+      head_of_household: 25_000
+      qualifying_surviving_spouse: 25_000
+    phaseout_threshold:        # line 9
+      single: 150_000
+      married_filing_jointly: 300_000
+      married_filing_separately: 150_000   # not claimable: joint return required
+      head_of_household: 150_000
+      qualifying_surviving_spouse: 150_000
+    reduction_per_step: 100    # lines 11–12: $100 per $1,000, rounded down
+    round_steps: down
+    joint_return_required: true
+  overtime:                    # Part III, lines 15–21
+    cap:                       # line 15
+      single: 12_500
+      married_filing_jointly: 25_000
+      married_filing_separately: 12_500
+      head_of_household: 12_500
+      qualifying_surviving_spouse: 12_500
+    phaseout_threshold:        # line 17
+      single: 150_000
+      married_filing_jointly: 300_000
+      married_filing_separately: 150_000   # not claimable: joint return required
+      head_of_household: 150_000
+      qualifying_surviving_spouse: 150_000
+    reduction_per_step: 100    # lines 19–20: $100 per $1,000, rounded down
+    round_steps: down
+    joint_return_required: true
+  car_loan_interest:           # Part IV, lines 24–30
+    cap:                       # line 24
+      single: 10_000
+      married_filing_jointly: 10_000
+      married_filing_separately: 10_000
+      head_of_household: 10_000
+      qualifying_surviving_spouse: 10_000
+    phaseout_threshold:        # line 26
+      single: 100_000
+      married_filing_jointly: 200_000
+      married_filing_separately: 100_000   # claimable: no joint-return condition
+      head_of_household: 100_000
+      qualifying_surviving_spouse: 100_000
+    reduction_per_step: 200    # lines 28–29: $200 per $1,000, rounded UP
+    round_steps: up
+    joint_return_required: false

@@ -13,8 +13,8 @@ from decimal import Decimal
 from ouch.engine import setax
 from ouch.engine.credits import compute_credits
 from ouch.engine.deductions import (ItemizedResult, itemized_deduction,
-                                    qbi_deduction, senior_deduction,
-                                    standard_deduction)
+                                    qbi_deduction, schedule_1a_items,
+                                    senior_deduction, standard_deduction)
 from ouch.engine.federal import amt_additional, federal_income_tax
 from ouch.engine.income import net_capital
 from ouch.engine.payments import project_payments, safe_harbor
@@ -296,12 +296,33 @@ def _compute_federal(inp: TaxInput, fed: FederalData,
                      f"aged {sec.min_age}+; MAGI taken as AGI"),
                form_ref="Schedule 1-A Part V", authority="P.L. 119-21 (OBBBA)",
                inputs=("fed.agi",), warnings=senior.warnings)
+    parts = ["fed.deduction.senior"] if senior.deduction > ZERO else []
+    form_parts = {"tips": "Part II", "overtime": "Part III",
+                  "car_loan_interest": "Part IV"}
+    for item in schedule_1a_items(inp, agi, fed):
+        warnings.extend(item.warnings)
+        if item.amount <= ZERO:
+            continue
+        sec = item.section
+        rounding = "rounded down" if sec.round_steps == "down" else "rounded up"
+        tb.add(f"fed.deduction.{item.key}", item.label, item.amount,
+               jurisdiction="federal",
+               rule=(f"min(${item.claimed.round_dollar().amount:,.0f}, cap "
+                     f"${sec.cap[status]:,.0f}) less ${sec.reduction_per_step:,.0f} "
+                     f"per ${sec.step:,.0f} of MAGI over "
+                     f"${sec.phaseout_threshold[status]:,.0f} ({rounding}); "
+                     f"MAGI taken as AGI"),
+               form_ref=f"Schedule 1-A {form_parts[item.key]}",
+               authority="P.L. 119-21 (OBBBA)",
+               inputs=("fed.agi",), warnings=item.warnings)
+        parts.append(f"fed.deduction.{item.key}")
+        schedule_1a += item.amount
     if schedule_1a > ZERO:
         tb.add("fed.schedule_1a", "Schedule 1-A additional deductions",
                schedule_1a, jurisdiction="federal",
                rule="sum of Schedule 1-A deductions",
                form_ref="1040 line 13b", authority="Schedule 1-A Part VI",
-               inputs=("fed.deduction.senior",))
+               inputs=tuple(parts))
 
     # 7. QBI deduction -------------------------------------------------------
     # Form 8995 taxable income before QBI is after the line 12 and line 13b

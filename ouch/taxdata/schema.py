@@ -7,7 +7,7 @@ All numeric figures parse to Decimal — no floats survive validation.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import (BaseModel, ConfigDict, Field, field_validator,
                       model_validator)
@@ -335,6 +335,30 @@ class SeniorDeduction(_Model):
         return v
 
 
+class PhasedDeduction(_Model):
+    """A capped Schedule 1-A deduction with a stepped MAGI phase-out
+    (tips, Part II; overtime, Part III; car-loan interest, Part IV).
+
+    deduction = min(amount, cap[status]) − reduction_per_step × steps, where
+    steps = (MAGI − threshold) / step, rounded as the form says: down for
+    tips and overtime (lines 11, 19), up for car-loan interest (line 28).
+    """
+    cap: StatusAmount
+    phaseout_threshold: StatusAmount
+    reduction_per_step: Decimal = Field(gt=0)
+    step: Decimal = Field(default=Decimal(1000), gt=0)
+    round_steps: Literal["down", "up"]
+    joint_return_required: bool     # "If married, you must file jointly"
+
+    @field_validator("cap", "phaseout_threshold")
+    @classmethod
+    def _all_statuses(cls, v: StatusAmount, info) -> StatusAmount:
+        missing = [s.value for s in FilingStatus if s not in v]
+        if missing:
+            raise ValueError(f"{info.field_name} missing {', '.join(missing)}")
+        return v
+
+
 class Schedule1A(_Model):
     """Additional deductions claimed on Schedule 1-A (Form 1040 line 13b).
 
@@ -342,6 +366,9 @@ class Schedule1A(_Model):
     year; absence means it is not (no year checks in the engine).
     """
     senior: Optional[SeniorDeduction] = None
+    tips: Optional[PhasedDeduction] = None
+    overtime: Optional[PhasedDeduction] = None
+    car_loan_interest: Optional[PhasedDeduction] = None
 
 
 class FederalData(_Model):

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 
 from ouch.model.enums import DeductionMode, FilingStatus
 from ouch.model.input import TaxInput
 from ouch.model.money import Money, ZERO, maxm, minm
-from ouch.taxdata.schema import FederalData, SaltCap
+from ouch.taxdata.schema import FederalData, PhasedDeduction, SaltCap
 
 _MARRIED = {
     FilingStatus.MARRIED_FILING_JOINTLY,
@@ -78,6 +78,85 @@ def senior_deduction(inp: TaxInput, magi: Money, fed: FederalData) -> SeniorResu
     warnings = ("enhanced deduction for seniors assumes each qualifying "
                 "person has a valid Social Security number",)
     return SeniorResult(per_person * seniors, per_person, seniors, warnings)
+
+
+def phased_deduction(amount: Money, magi: Money, status: FilingStatus,
+                     section: PhasedDeduction) -> Money:
+    """A Schedule 1-A capped deduction with a stepped phase-out.
+
+    Tips (Part II, lines 7–13), overtime (Part III, lines 15–21) and car-loan
+    interest (Part IV, lines 24–30) share one shape: cap the amount, then
+    subtract ``reduction_per_step`` for each ``step`` of MAGI over the
+    threshold, with the step count rounded as the form directs.
+    """
+    capped = minm(maxm(amount, ZERO), Money(section.cap[status]))
+    excess = magi - Money(section.phaseout_threshold[status])
+    if capped <= ZERO or excess <= ZERO:
+        return capped
+    ratio = excess.amount / section.step
+    steps = (ratio.to_integral_value(rounding=ROUND_FLOOR)
+             if section.round_steps == "down"
+             else ratio.to_integral_value(rounding=ROUND_CEILING))
+    return maxm(ZERO, capped - Money(section.reduction_per_step) * steps)
+
+
+@dataclass(frozen=True)
+class Schedule1AItem:
+    key: str              # trace id suffix: fed.deduction.<key>
+    label: str
+    amount: Money
+    claimed: Money        # before cap and phase-out
+    section: PhasedDeduction
+    warnings: tuple[str, ...]
+
+
+def schedule_1a_items(inp: TaxInput, magi: Money,
+                      fed: FederalData) -> list[Schedule1AItem]:
+    """Tips, overtime and car-loan interest (Schedule 1-A Parts II–IV).
+
+    MAGI is AGI (ouch has no inputs for the Part I exclusions). Tips and
+    overtime need a joint return if married; car-loan interest doesn't.
+    Eligibility the profile can't express (occupation, the FLSA premium,
+    the vehicle) is assumed and disclosed.
+    """
+    sched = fed.schedule_1a
+    if sched is None:
+        return []
+    status = inp.taxpayer.filing_status
+    w = inp.income.wages
+    joint = status == FilingStatus.MARRIED_FILING_JOINTLY
+    spouse_tips = Money(w.spouse_qualified_tips) if joint else ZERO
+    spouse_ot = Money(w.spouse_qualified_overtime) if joint else ZERO
+    candidates = (
+        ("tips", "Qualified tips deduction", sched.tips,
+         Money(w.taxpayer_qualified_tips) + spouse_tips,
+         "qualified tips deduction assumes the tips were earned in an "
+         "occupation on the Treasury list (IRS.gov/TippedOccupations) and that "
+         "each recipient has a valid Social Security number"),
+        ("overtime", "Qualified overtime deduction", sched.overtime,
+         Money(w.taxpayer_qualified_overtime) + spouse_ot,
+         "qualified overtime deduction assumes the amount entered is only the "
+         "premium portion of FLSA overtime and that each recipient has a "
+         "valid Social Security number"),
+        ("car_loan_interest", "Car loan interest deduction",
+         sched.car_loan_interest, Money(inp.deductions.car_loan_interest),
+         "car loan interest deduction assumes the loan is for an applicable "
+         "passenger vehicle bought after 2024 for personal use (see the "
+         "Schedule 1-A instructions)"),
+    )
+    items: list[Schedule1AItem] = []
+    for key, label, section, claimed, assumption in candidates:
+        if section is None or claimed <= ZERO:
+            continue
+        if section.joint_return_required and status == FilingStatus.MARRIED_FILING_SEPARATELY:
+            items.append(Schedule1AItem(key, label, ZERO, claimed, section, (
+                f"{label.lower()} requires a joint return if married; none "
+                f"allowed when filing separately",)))
+            continue
+        amount = phased_deduction(claimed, magi, status, section)
+        items.append(Schedule1AItem(key, label, amount, claimed, section,
+                                    (assumption,)))
+    return items
 
 
 @dataclass(frozen=True)

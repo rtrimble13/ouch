@@ -1244,6 +1244,16 @@ age the day before the birthday). Married filers must file jointly. MAGI is
 AGI plus the Puerto Rico, Form 2555 and Form 4563 exclusions; v1 uses AGI.
 The valid-SSN requirement has no input, so a warning says it is assumed.
 
+**Tips, overtime and car-loan interest** (Parts II–IV) share one data shape,
+`PhasedDeduction`: `min(amount, cap[status])` less `reduction_per_step` for
+each `step` ($1,000) of MAGI over `phaseout_threshold[status]`, with the step
+count rounded down (tips, overtime) or up (car-loan interest) as the form's
+lines 11, 19 and 28 direct. Tips and overtime need a joint return if married;
+car-loan interest doesn't. Tips and overtime are deductions, not exclusions:
+they stay in W-2 box 1, AGI and FICA, and each person's tips plus overtime
+can't exceed their box 1. Occupation, FLSA-premium and vehicle eligibility
+have no inputs and are disclosed as assumed.
+
 **Mortgage interest limitation**: deductible portion =
 `interest × min(1, acquisition_limit / average_balance)`, using the
 grandfathered limit if the profile flags pre-cutoff debt.
@@ -1551,13 +1561,28 @@ fields:
   - box: "3"
     labels: ["Social security wages"]
     target: income.wages.{owner}_ss_wages
+coded_fields:                # box 12: code left of the line, amount right
   - box: "12"
-    type: coded
-    codes:
-      D:  adjustments.elective_deferral_401k
-      W:  adjustments.hsa_employer
-      DD: informational.employer_health_cost
+    slots: [a, b, c, d]
+    code: TP                   # 2026: total cash tips reported to employer
+    description: "Cash tips reported to employer"
+    target: income.wages.{owner}_qualified_tips
+    occupation_check:          # "000" in box 14b → some tips don't qualify
+      box: "14b"
+      label: "Treasury Tipped Occupation Code"
+      nonqualifying_code: "000"
+  - box: "12"
+    slots: [a, b, c, d]
+    code: TT                   # 2026: qualified overtime (premium only)
+    description: "Qualified overtime compensation"
+    target: income.wages.{owner}_qualified_overtime
 ```
+
+A coded field is always optional and sums across documents. Its entries are
+found as AcroForm code/amount pairs, as `12a TP 8,250.00` on one line, or as
+a `12a` marker followed by `TP 8,250.00` on the next line; the last is
+low-confidence and always goes to review. Other codes (D, W, DD, …) can be
+added the same way once ouch has a target for them.
 
 ### 11.6 Review workflow
 

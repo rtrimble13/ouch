@@ -593,6 +593,17 @@ context, and a note when something looks suspicious:
     [a]ccept / [e]dit / [s]kip [s]:
 ```
 
+From a W-2, box 12 entries with code **TP** (cash tips reported to the
+employer) and **TT** (qualified overtime, the premium portion only) import to
+`taxpayer_qualified_tips` and `taxpayer_qualified_overtime`, or the spouse's
+fields, for the Schedule 1-A deductions. Other box 12 codes are ignored. TP is
+*every* cash tip, so ouch also reads box 14b, the Treasury Tipped Occupation
+Code(s). If box 14b includes `000`, some tips came from a nonqualifying
+occupation, and the TP amount goes to review with a note: enter only the
+qualified part. If box 14b is missing, review asks you to confirm the
+occupation. Under `--yes` both cases are skipped, not accepted. These codes
+are new on 2026 W-2s.
+
 Aggregation across documents follows each field's rule: W-2 box 1 **sums** per
 owner, box 2 withholding **sums** across every document, prior-year 1040 lines
 **assign**. Two W-2s assigned to the same owner therefore add together — which
@@ -868,6 +879,12 @@ Repeat the table for each dependent.
 | `spouse_ss_wages` | |
 | `taxpayer_medicare_wages` | W-2 box 5 — the uncapped Additional Medicare (Form 8959) base. Defaults to box 1 when absent; box 5 usually exceeds box 1 by 401(k)/403(b) deferrals, so supply it if you are near the threshold |
 | `spouse_medicare_wages` | |
+| `taxpayer_qualified_tips` | Qualified tips included in box 1, for the Schedule 1-A tips deduction (2025–2028): up to $25,000 per return, phasing out above $150,000 MAGI ($300,000 joint). The occupation must be on the Treasury list (IRS.gov/TippedOccupations), which ouch assumes and says so in a warning. For 2026 W-2s, box 12 code TP. Tips received as self-employment income (Schedule 1-A line 5) aren't modelled |
+| `spouse_qualified_tips` | Joint returns only |
+| `taxpayer_qualified_overtime` | Qualified overtime included in box 1: **only the premium portion** (the "half" of time-and-a-half) required by the FLSA. For the overtime deduction (2025–2028): up to $12,500 ($25,000 joint), phasing out above $150,000 MAGI ($300,000 joint). For 2026 W-2s, box 12 code TT |
+| `spouse_qualified_overtime` | Joint returns only |
+
+Each person's tips plus overtime can't exceed their box 1 wages: both are already in box 1. They're deductions, not exclusions, so box 1, AGI and FICA are unchanged. Married filers must file jointly to claim either.
 
 ### `[income.investment]`
 
@@ -920,6 +937,7 @@ Above-the-line: `traditional_ira`, `hsa`, `student_loan_interest`,
 | Key | Values | Notes |
 |---|---|---|
 | `mode` | `auto` (default), `standard`, `itemized` | `auto` takes the larger |
+| `car_loan_interest` | amount | Qualified passenger vehicle loan interest paid in the year, for the Schedule 1-A deduction (2025–2028): up to $10,000, reduced by $200 for each $1,000 (or part) of MAGI above $100,000 ($200,000 joint). Allowed on any filing status, itemizing or not. The vehicle must be an applicable passenger vehicle bought after 2024 for personal use, which ouch assumes and says so in a warning. Leave out interest already deducted on Schedule C, E or F |
 
 ### `[deductions.itemized]`
 
@@ -1439,7 +1457,8 @@ Federal ordinary and preferential rate stacking (including the 25% unrecaptured
 coordination, the SE and SE-health above-the-line deductions, iterative taxable
 Social Security, standard vs itemized with SALT-cap convergence and the
 high-income SALT cap phase-down (wherever the year's data file defines one), the
-Schedule 1-A enhanced deduction for seniors (2025–2028), QBI (§199A)
+Schedule 1-A deductions for 2025–2028 (seniors, qualified tips, qualified overtime
+and car-loan interest), QBI (§199A)
 with the wage/UBIA limitation, a simplified AMT plus the Form 8801 credit
 carryforward, Additional Medicare, NIIT, the statutory capital-loss netting
 order with carryforward, and the ordered credit cascade: child and dependent
