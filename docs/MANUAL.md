@@ -593,6 +593,17 @@ context, and a note when something looks suspicious:
     [a]ccept / [e]dit / [s]kip [s]:
 ```
 
+From a W-2, box 12 entries with code **TP** (cash tips reported to the
+employer) and **TT** (qualified overtime, the premium portion only) import to
+`taxpayer_qualified_tips` and `taxpayer_qualified_overtime`, or the spouse's
+fields, for the Schedule 1-A deductions. Other box 12 codes are ignored. TP is
+*every* cash tip, so ouch also reads box 14b, the Treasury Tipped Occupation
+Code(s). If box 14b includes `000`, some tips came from a nonqualifying
+occupation, and the TP amount goes to review with a note: enter only the
+qualified part. If box 14b is missing, review asks you to confirm the
+occupation. Under `--yes` both cases are skipped, not accepted. These codes
+are new on 2026 W-2s.
+
 Aggregation across documents follows each field's rule: W-2 box 1 **sums** per
 owner, box 2 withholding **sums** across every document, prior-year 1040 lines
 **assign**. Two W-2s assigned to the same owner therefore add together — which

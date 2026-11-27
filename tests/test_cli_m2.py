@@ -134,6 +134,45 @@ def test_import_pdf_end_to_end(home, tmp_path):
     assert "1040 (prior year)" in r.stdout and "not imported" in r.stdout
 
 
+def test_import_w2_box12_tips_and_overtime(home, tmp_path):
+    """A 2026-layout W-2 with box 12 TP (box 14b code 101) and TT imports
+    both, and the estimate takes the Schedule 1-A deductions: MAGI 68,000
+    is under both $150,000 thresholds, so 8,000 + 3,000 = 11,000."""
+    pdf = _make_pdf(tmp_path / "w2.pdf", [
+        "Form W-2 Wage and Tax Statement", "OMB No. 1545-0008",
+        "1 Wages, tips, other compensation 68,000.00",
+        "2 Federal income tax withheld 6,100.00",
+        "3 Social security wages 68,000.00",
+        "12a TP 8,000.00", "12b TT 3,000.00",
+        "14b Treasury Tipped Occupation Code(s) 101"])
+    r = run_cli(home, "import", "pdf", "--yes", "--owner", "taxpayer", str(pdf))
+    assert r.returncode == 0, r.stderr
+    profile = (Path(home["XDG_CONFIG_HOME"]) / "ouch" / "profiles"
+               / "default.toml").read_text()
+    assert "taxpayer_qualified_tips = 8000" in profile
+    assert "taxpayer_qualified_overtime = 3000" in profile
+    r = run_cli(home, "--format", "json", "estimate")
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout)["result"]["schedule_1a_deduction"] == "11000.00"
+
+
+def test_import_w2_tips_with_nonqualifying_code_are_not_auto_accepted(home, tmp_path):
+    """Box 14b "000" means some tips came from a nonqualifying occupation:
+    --yes skips the TP amount (it needs review) but still takes TT."""
+    pdf = _make_pdf(tmp_path / "w2.pdf", [
+        "Form W-2 Wage and Tax Statement", "OMB No. 1545-0008",
+        "1 Wages, tips, other compensation 68,000.00",
+        "3 Social security wages 68,000.00",
+        "12a TP 8,000.00", "12b TT 3,000.00",
+        "14b Treasury Tipped Occupation Code(s) 101 000"])
+    r = run_cli(home, "import", "pdf", "--yes", "--owner", "taxpayer", str(pdf))
+    assert r.returncode == 0, r.stderr
+    profile = (Path(home["XDG_CONFIG_HOME"]) / "ouch" / "profiles"
+               / "default.toml").read_text()
+    assert "qualified_tips" not in profile
+    assert "taxpayer_qualified_overtime = 3000" in profile
+
+
 def test_import_dry_run_writes_nothing(home, tmp_path):
     pdf = _make_pdf(tmp_path / "w2.pdf", [
         "Form W-2 Wage and Tax Statement", "OMB No. 1545-0008",

@@ -6,6 +6,14 @@ Changes that don't ship in the package (tests, CI, documentation) need no entry.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-26
+
+### Added
+
+- `ouch import pdf` reads W-2 box 12 codes **TP** (cash tips reported to the employer) and **TT** (qualified overtime, the premium portion only) into the Schedule 1-A tips and overtime fields. These are new on 2026 W-2s. Other box 12 codes are ignored.
+- TP is every cash tip, so the import also reads box 14b, the Treasury Tipped Occupation Code(s). When box 14b includes `000` (some tips came from a nonqualifying occupation), or box 14b can't be found, the tips amount goes to review instead of being accepted. `--yes` skips it.
+- PDF mapping tables accept `coded_fields` for code-keyed boxes such as W-2 box 12.
+
 ## [0.3.1] - 2026-11-26
 
 Adds the remaining Schedule 1-A deductions for 2025–2028 (rtrimble13/ouch#26). Existing profiles compute exactly as before: these take new, optional inputs.
